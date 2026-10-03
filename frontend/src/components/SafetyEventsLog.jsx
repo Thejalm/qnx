@@ -9,44 +9,34 @@ export default function SafetyEventsLog({ events }) {
     return e.level === filter;
   });
 
-  const getLevelStyle = (lvl) => {
+  const getLevelBadge = (lvl) => {
     switch (lvl) {
       case 'CRITICAL':
-        return { color: '#fb7185', icon: <ShieldAlert size={16} /> };
+        return { badgeClass: 'mc-badge-accent', icon: <ShieldAlert size={14} /> };
       case 'WARN':
-        return { color: '#fbbf24', icon: <AlertTriangle size={16} /> };
+        return { badgeClass: 'mc-badge-outline', icon: <AlertTriangle size={14} /> };
       case 'FAULT':
-        return { color: '#c084fc', icon: <Wrench size={16} /> };
+        return { badgeClass: 'mc-badge-dark', icon: <Wrench size={14} /> };
       default:
-        return { color: '#38bdf8', icon: <Info size={16} /> };
+        return { badgeClass: 'mc-badge-subtle', icon: <Info size={14} /> };
     }
   };
 
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div className="section-title" style={{ marginBottom: 0 }}>
-          <ScrollText size={20} color="#f59e0b" />
-          <span>QNX Real-Time Safety Event Log</span>
+    <section className="mc-card" style={{ height: '100%' }}>
+      <div className="mc-section-header" style={{ flexWrap: 'wrap' }}>
+        <div className="mc-section-title">
+          <ScrollText size={20} color="var(--color-2)" />
+          <span>Safety event audit log</span>
         </div>
 
-        {/* Filter Buttons */}
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
+        {/* Filter Pill Buttons with interactive states */}
+        <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
           {['ALL', 'CRITICAL', 'WARN', 'FAULT', 'INFO'].map(lvl => (
             <button
               key={lvl}
               onClick={() => setFilter(lvl)}
-              style={{
-                background: filter === lvl ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
-                color: filter === lvl ? '#38bdf8' : 'var(--text-muted)',
-                border: filter === lvl ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255,255,255,0.06)',
-                borderRadius: '6px',
-                padding: '0.25rem 0.6rem',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
+              className={`mc-btn mc-btn-secondary ${filter === lvl ? 'is-active' : ''}`}
             >
               {lvl}
             </button>
@@ -54,58 +44,60 @@ export default function SafetyEventsLog({ events }) {
         </div>
       </div>
 
-      {/* Events List Container */}
-      <div style={{
-        flex: 1,
-        maxHeight: '320px',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.5rem',
-        paddingRight: '0.4rem'
-      }}>
+      {/* Events List */}
+      <div
+        style={{
+          flex: 1,
+          maxHeight: '340px',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-2)',
+          paddingRight: 'var(--space-1)'
+        }}
+      >
         {filteredEvents.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontSize: '0.85rem' }}>
+          <div className="mc-card-nested" style={{ textAlign: 'left', color: 'var(--text-secondary)', padding: 'var(--space-5)' }}>
             No safety events recorded. System operating normally.
           </div>
         ) : (
           filteredEvents.map((evt, idx) => {
-            const style = getLevelStyle(evt.level);
+            const { badgeClass, icon } = getLevelBadge(evt.level);
             return (
               <div
                 key={evt.id || idx}
+                className="mc-card-nested"
                 style={{
-                  background: 'rgba(255,255,255,0.02)',
-                  border: `1px solid ${style.color}30`,
-                  borderLeft: `4px solid ${style.color}`,
-                  borderRadius: '6px',
-                  padding: '0.65rem 0.85rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  gap: '0.8rem'
+                  padding: 'var(--space-3) var(--space-4)',
+                  gap: 'var(--space-3)'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <span style={{ color: style.color }}>{style.icon}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                  <span className={`mc-badge ${badgeClass}`}>
+                    {icon}
+                    <span>{evt.level}</span>
+                  </span>
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>
                       {evt.description}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Source: {evt.source} | V1={evt.sensor_val1?.toFixed(1)} V2={evt.sensor_val2?.toFixed(1)}
+                    <div className="mc-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                      source: {evt.source} | v1={evt.sensor_val1?.toFixed(1)} v2={evt.sensor_val2?.toFixed(1)}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  <span style={{ color: style.color, fontWeight: 700 }}>[{evt.level}]</span>
+                <div className="mc-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  {evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : 'Live'}
                 </div>
               </div>
             );
           })
         )}
       </div>
-    </div>
+    </section>
   );
 }

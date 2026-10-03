@@ -6,12 +6,12 @@ export default function RealtimeMetrics({ systemStatus, sensorData }) {
   const temp = sensorData?.temperature ?? 26.5;
   const gas = sensorData?.mq2_raw_adc ?? 350;
 
-  // QNX Decision Latency (Eval in Microseconds, ~12.5 - 28.5 us)
+  // QNX Decision Latency (Eval in Microseconds)
   const evalLatency = sensorData?.latency_us ?? systemStatus?.eval_latency_us ?? (
     Number((14.2 + ((seq * 7 + gas * 3) % 150) / 10.0 + (temp > 35 ? 4.5 : 0)).toFixed(1))
   );
 
-  // Total End-to-End Transport Loop (Loop in Milliseconds, ~98.0 - 104.5 ms)
+  // Total End-to-End Transport Loop (Loop in Milliseconds)
   const loopLatency = sensorData?.loop_latency_ms ?? systemStatus?.loop_latency_ms ?? (
     Number((99.2 + ((seq * 3) % 50) / 10.0).toFixed(1))
   );
@@ -20,105 +20,78 @@ export default function RealtimeMetrics({ systemStatus, sensorData }) {
   const dropped = systemStatus?.total_dropped_packets ?? 0;
 
   return (
-    <div className="glass-card">
-      <div className="section-title">
-        <Activity size={20} color="#06b6d4" />
-        <span>QNX RTOS Performance &amp; Real-Time Latency Metrics</span>
+    <section className="mc-card">
+      <div className="mc-section-header">
+        <div className="mc-section-title">
+          <Activity size={20} color="var(--color-2)" />
+          <span>Real-time latency and execution metrics</span>
+        </div>
+        <span className="mc-badge mc-badge-subtle">
+          QNX Microkernel
+        </span>
       </div>
 
-      <div className="grid-4-col">
-        {/* 1. QNX Decision Latency (Eval) */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+      <div className="mc-grid-4">
+        {/* Metric 1: QNX Evaluation Latency */}
+        <div className="mc-card-nested">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>QNX Decision Latency (Eval)</span>
-            <Zap size={18} color="#06b6d4" />
+            <span className="mc-stat-label">Decision latency (eval)</span>
+            <Zap size={16} color="var(--color-2)" />
           </div>
-          <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-            <span className="mono-val" style={{ fontSize: '1.8rem', color: evalLatency < 50 ? '#34d399' : '#fbbf24' }}>
+          <div style={{ margin: 'var(--space-2) 0', display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+            <span className="mc-stat-value mc-mono">
               {evalLatency}
             </span>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>µs</span>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>µs</span>
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>SCHED_FIFO Priority 25</span>
+          <p className="mc-section-subtitle">SCHED_FIFO priority 25</p>
         </div>
 
-        {/* 2. End-to-End Loop Transport (Loop) */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        {/* Metric 2: Network Loop Transport */}
+        <div className="mc-card-nested">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Network Transport (Loop)</span>
-            <Clock size={18} color="#3b82f6" />
+            <span className="mc-stat-label">Transport cycle (loop)</span>
+            <Clock size={16} color="var(--color-1)" />
           </div>
-          <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-            <span className="mono-val" style={{ fontSize: '1.8rem', color: loopLatency < 150 ? '#38bdf8' : '#fbbf24' }}>
+          <div style={{ margin: 'var(--space-2) 0', display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+            <span className="mc-stat-value mc-mono">
               {loopLatency}
             </span>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>ms</span>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>ms</span>
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>10 Hz Telemetry Cadence</span>
+          <p className="mc-section-subtitle">10 Hz telemetry cadence</p>
         </div>
 
-        {/* 3. Total Telemetry Packets */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        {/* Metric 3: Packet Frames Received */}
+        <div className="mc-card-nested">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Packets Recv</span>
-            <Layers size={18} color="#10b981" />
+            <span className="mc-stat-label">Telemetry frames</span>
+            <Layers size={16} color="var(--color-1)" />
           </div>
-          <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-            <span className="mono-val" style={{ fontSize: '1.8rem', color: '#f8fafc' }}>
+          <div style={{ margin: 'var(--space-2) 0', display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+            <span className="mc-stat-value mc-mono">
               {packetsRecv}
             </span>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>frames</span>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>pkts</span>
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>XOR-8 Verified Stream</span>
+          <p className="mc-section-subtitle">XOR-8 checksum validated</p>
         </div>
 
-        {/* 4. Dropped Frame Count */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        {/* Metric 4: Packet Loss Rate */}
+        <div className="mc-card-nested">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Packet Loss Rate</span>
-            <TrendingDown size={18} color={dropped > 0 ? '#fb7185' : '#34d399'} />
+            <span className="mc-stat-label">Packet loss rate</span>
+            <TrendingDown size={16} color={dropped > 0 ? 'var(--color-2)' : 'var(--text-secondary)'} />
           </div>
-          <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-            <span className="mono-val" style={{ fontSize: '1.8rem', color: dropped > 0 ? '#fb7185' : '#34d399' }}>
+          <div style={{ margin: 'var(--space-2) 0', display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+            <span className="mc-stat-value mc-mono" style={{ color: dropped > 0 ? 'var(--color-2)' : 'var(--color-1)' }}>
               {dropped}
             </span>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>drops</span>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>drops</span>
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sequence Gap Detector</span>
+          <p className="mc-section-subtitle">Sequence gap detector</p>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

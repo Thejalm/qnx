@@ -1,5 +1,5 @@
 import React from 'react';
-import { Fan, Droplet, Bell, Volume2, Lightbulb, Monitor } from 'lucide-react';
+import { Fan, Droplet, Bell, Volume2, Monitor } from 'lucide-react';
 
 export default function ActuatorGrid({ actuatorState }) {
   const fanRun = actuatorState?.relay_fan ?? false;
@@ -12,158 +12,144 @@ export default function ActuatorGrid({ actuatorState }) {
   const failsafe = actuatorState?.failsafe_active ?? false;
 
   return (
-    <div className="glass-card">
-      <div className="section-title">
-        <Monitor size={20} color="#38bdf8" />
-        <span>ESP32-C3 Output Actuators & Hardware Display</span>
+    <section className="mc-card">
+      <div className="mc-section-header">
+        <div className="mc-section-title">
+          <Monitor size={20} color="var(--color-2)" />
+          <span>Output actuators and hardware display</span>
+        </div>
+        <span className="mc-badge mc-badge-subtle">
+          ESP32-C3 Node 2
+        </span>
       </div>
 
-      <div className="grid-4-col">
+      <div className="mc-grid-4">
         {/* Relay 1: Exhaust Fan */}
-        <div style={{
-          background: fanRun ? 'rgba(56, 189, 248, 0.1)' : 'rgba(255,255,255,0.02)',
-          border: fanRun ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1.1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: '0.6rem'
-        }}>
-          <Fan size={36} className={fanRun ? 'fan-running' : 'fan-stopped'} />
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Exhaust / Cooling Fan</div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Relay 1 (GPIO 2)</span>
-          <span className={`status-badge ${fanRun ? 'badge-normal' : 'badge-offline'}`}>
-            {fanRun ? 'RUNNING' : 'STOPPED'}
-          </span>
+        <div className="mc-card-nested" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Fan size={22} color={fanRun ? 'var(--color-2)' : 'var(--text-secondary)'} />
+            <span className={`mc-badge ${fanRun ? 'mc-badge-dark' : 'mc-badge-subtle'}`}>
+              {fanRun ? 'Running' : 'Stopped'}
+            </span>
+          </div>
+          <div>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>Cooling fan</div>
+            <p className="mc-section-subtitle">Relay 1 (GPIO 2)</p>
+          </div>
         </div>
 
         {/* Relay 2: Water Pump */}
-        <div style={{
-          background: pumpRun ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.02)',
-          border: pumpRun ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1.1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: '0.6rem'
-        }}>
-          <Droplet size={36} color={pumpRun ? '#38bdf8' : 'var(--text-muted)'} />
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Water Suppressor Pump</div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Relay 2 (GPIO 3)</span>
-          <span className={`status-badge ${pumpRun ? 'badge-critical' : 'badge-offline'}`}>
-            {pumpRun ? 'SUPPRESSION' : 'IDLE'}
-          </span>
+        <div className="mc-card-nested" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Droplet size={22} color={pumpRun ? 'var(--color-2)' : 'var(--text-secondary)'} />
+            <span className={`mc-badge ${pumpRun ? 'mc-badge-accent' : 'mc-badge-subtle'}`}>
+              {pumpRun ? 'Active' : 'Idle'}
+            </span>
+          </div>
+          <div>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>Water pump</div>
+            <p className="mc-section-subtitle">Relay 2 (GPIO 3)</p>
+          </div>
         </div>
 
-        {/* Primary Alarm Buzzer */}
-        <div style={{
-          background: buz1 ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255,255,255,0.02)',
-          border: buz1 ? '1px solid rgba(244, 63, 94, 0.5)' : '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1.1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: '0.6rem'
-        }}>
-          <Bell size={36} color={buz1 ? '#fb7185' : 'var(--text-muted)'} />
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Primary Siren Buzzer</div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Buzzer 1 (GPIO 0)</span>
-          <span className={`status-badge ${buz1 ? 'badge-critical' : 'badge-offline'}`}>
-            {buz1 ? 'ALARM ON' : 'SILENT'}
-          </span>
+        {/* Buzzer 1: Primary Siren */}
+        <div className="mc-card-nested" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Bell size={22} color={buz1 ? 'var(--color-2)' : 'var(--text-secondary)'} />
+            <span className={`mc-badge ${buz1 ? 'mc-badge-accent' : 'mc-badge-subtle'}`}>
+              {buz1 ? 'Alarm on' : 'Silent'}
+            </span>
+          </div>
+          <div>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>Primary siren</div>
+            <p className="mc-section-subtitle">Buzzer 1 (GPIO 0)</p>
+          </div>
         </div>
 
-        {/* Warning Beep Buzzer */}
-        <div style={{
-          background: buz2 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255,255,255,0.02)',
-          border: buz2 ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1.1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: '0.6rem'
-        }}>
-          <Volume2 size={36} color={buz2 ? '#fbbf24' : 'var(--text-muted)'} />
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Warning Beep Buzzer</div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Buzzer 2 (GPIO 1)</span>
-          <span className={`status-badge ${buz2 ? 'badge-warning' : 'badge-offline'}`}>
-            {buz2 ? 'BEEPING' : 'MUTED'}
-          </span>
+        {/* Buzzer 2: Warning Beep */}
+        <div className="mc-card-nested" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Volume2 size={22} color={buz2 ? 'var(--color-2)' : 'var(--text-secondary)'} />
+            <span className={`mc-badge ${buz2 ? 'mc-badge-dark' : 'mc-badge-subtle'}`}>
+              {buz2 ? 'Beeping' : 'Muted'}
+            </span>
+          </div>
+          <div>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>Warning beeper</div>
+            <p className="mc-section-subtitle">Buzzer 2 (GPIO 1)</p>
+          </div>
         </div>
       </div>
 
       {/* OLED & Discrete LEDs Footer Bar */}
-      <div style={{
-        marginTop: '1.25rem',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '1rem',
-        alignItems: 'center'
-      }}>
-        {/* Discrete LED Panel */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '10px',
-          padding: '0.85rem 1.25rem',
-          display: 'flex',
-          justifyContent: 'space-around',
+      <div
+        style={{
+          marginTop: 'var(--space-4)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 'var(--space-4)',
           alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div style={{
-              width: '14px',
-              height: '14px',
-              borderRadius: '50%',
-              background: ledYellow ? '#fbbf24' : '#334155',
-              boxShadow: ledYellow ? '0 0 10px #fbbf24' : 'none',
-              transition: 'all 0.2s ease'
-            }} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Yellow LED (GPIO 6)</span>
+        }}
+      >
+        {/* Discrete LED Indicators */}
+        <div className="mc-card-nested" style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <div
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: 'var(--radius-lg)',
+                backgroundColor: ledYellow ? 'var(--color-2)' : 'var(--text-secondary)',
+                transition: 'var(--duration-fast)'
+              }}
+            />
+            <div>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-bold)' }}>Yellow LED</div>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>GPIO 6</p>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div style={{
-              width: '14px',
-              height: '14px',
-              borderRadius: '50%',
-              background: ledRed ? '#fb7185' : '#334155',
-              boxShadow: ledRed ? '0 0 10px #fb7185' : 'none',
-              transition: 'all 0.2s ease'
-            }} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Red LED (GPIO 7)</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <div
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: 'var(--radius-lg)',
+                backgroundColor: ledRed ? 'var(--color-2)' : 'var(--text-secondary)',
+                transition: 'var(--duration-fast)'
+              }}
+            />
+            <div>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-weight-bold)' }}>Red LED</div>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>GPIO 7</p>
+            </div>
           </div>
         </div>
 
-        {/* OLED Emulation Banner */}
-        <div style={{
-          background: '#000000',
-          border: '1px solid #38bdf8',
-          borderRadius: '10px',
-          padding: '0.75rem 1.25rem',
-          fontFamily: 'var(--font-mono)',
-          color: '#38bdf8',
-          boxShadow: '0 0 15px rgba(56, 189, 248, 0.2)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', borderBottom: '1px dashed #38bdf8', paddingBottom: '0.3rem' }}>
-            <span>SSD1306 128x64 OLED</span>
+        {/* SSD1306 OLED Display Emulation */}
+        <div
+          className="mc-card-nested"
+          style={{
+            backgroundColor: 'var(--color-1)',
+            color: 'var(--color-6)',
+            padding: 'var(--space-3) var(--space-4)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-1)'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+            <span>SSD1306 OLED (128x64)</span>
             <span>I2C: 0x3C</span>
           </div>
-          <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', fontWeight: 700 }}>
-            SYS: {failsafe ? 'FAILSAFE (LOST LINK)' : statusText}
+          <div className="mc-mono" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-6)' }}>
+            STATUS: {failsafe ? 'FAILSAFE (LOST LINK)' : statusText}
           </div>
-          <div style={{ fontSize: '0.75rem', marginTop: '0.2rem', color: '#94a3b8' }}>
-            FAN:[{fanRun ? 'RUN ' : 'STOP'}] PUMP:[{pumpRun ? 'RUN ' : 'STOP'}] LINK:[{failsafe ? 'DOWN' : 'LIVE'}]
+          <div className="mc-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+            FAN:[{fanRun ? 'ON ' : 'OFF'}] PUMP:[{pumpRun ? 'ON ' : 'OFF'}] LINK:[{failsafe ? 'DOWN' : 'OK'}]
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

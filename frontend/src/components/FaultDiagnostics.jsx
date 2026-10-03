@@ -3,7 +3,6 @@ import { AlertOctagon, CheckCircle2, ShieldOff, Cable, Radio } from 'lucide-reac
 
 export default function FaultDiagnostics({ sensorData, systemStatus }) {
   const faultFlags = sensorData?.fault_flags ?? 0;
-  const isCommHealthy = systemStatus?.is_comm_healthy ?? true;
   const failsafeActive = systemStatus?.latest_actuator?.failsafe_active ?? false;
 
   const bmeFault = Boolean(faultFlags & 0x01);
@@ -11,101 +10,106 @@ export default function FaultDiagnostics({ sensorData, systemStatus }) {
   const flameFault = Boolean(faultFlags & 0x04);
 
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className="section-title">
-        <AlertOctagon size={20} color="#8b5cf6" />
-        <span>Hardware Faults &amp; Fail-Safe Watchdog</span>
+    <section className="mc-card" style={{ height: '100%' }}>
+      <div className="mc-section-header">
+        <div className="mc-section-title">
+          <AlertOctagon size={20} color="var(--color-2)" />
+          <span>Hardware diagnostics and fail-safe watchdog</span>
+        </div>
+        <span className="mc-badge mc-badge-subtle">
+          Watchdog Armed
+        </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
-        {/* Watchdog Status */}
-        <div style={{
-          background: failsafeActive ? 'rgba(244, 63, 94, 0.15)' : 'rgba(255,255,255,0.02)',
-          border: failsafeActive ? '1px solid rgba(244, 63, 94, 0.5)' : '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '8px',
-          padding: '0.75rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <Radio size={18} color={failsafeActive ? '#fb7185' : '#34d399'} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', flex: 1 }}>
+        {/* 2.0s Output Watchdog */}
+        <div
+          className="mc-card-nested"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 'var(--space-3) var(--space-4)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <Radio size={18} color={failsafeActive ? 'var(--color-2)' : 'var(--color-1)'} />
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>2.0s Output Watchdog</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Auto-safing on link loss</div>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>2.0s output watchdog</div>
+              <p className="mc-section-subtitle">Auto-safing on communication loss</p>
             </div>
           </div>
-          <span className={`status-badge ${failsafeActive ? 'badge-critical' : 'badge-normal'}`}>
-            {failsafeActive ? 'TRIPPED' : 'ARMED'}
+          <span className={`mc-badge ${failsafeActive ? 'mc-badge-accent' : 'mc-badge-dark'}`}>
+            {failsafeActive ? 'Tripped' : 'Armed'}
           </span>
         </div>
 
         {/* BME280 Bus Health */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '8px',
-          padding: '0.75rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {bmeFault ? <ShieldOff size={18} color="#fb7185" /> : <CheckCircle2 size={18} color="#34d399 Wand" />}
+        <div
+          className="mc-card-nested"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 'var(--space-3) var(--space-4)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            {bmeFault ? <ShieldOff size={18} color="var(--color-2)" /> : <CheckCircle2 size={18} color="var(--color-1)" />}
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>BME280 I2C Bus Link</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Addr: 0x76 / 0x77</div>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>BME280 I2C bus link</div>
+              <p className="mc-section-subtitle">Address: 0x76 / 0x77</p>
             </div>
           </div>
-          <span className={`status-badge ${bmeFault ? 'badge-fault' : 'badge-normal'}`}>
-            {bmeFault ? 'FAULT' : 'ONLINE'}
+          <span className={`mc-badge ${bmeFault ? 'mc-badge-accent' : 'mc-badge-subtle'}`}>
+            {bmeFault ? 'Fault' : 'Online'}
           </span>
         </div>
 
         {/* MQ-2 Circuit Integrity */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '8px',
-          padding: '0.75rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {mq2Fault ? <Cable size={18} color="#fb7185" /> : <CheckCircle2 size={18} color="#34d399" />}
+        <div
+          className="mc-card-nested"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 'var(--space-3) var(--space-4)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            {mq2Fault ? <Cable size={18} color="var(--color-2)" /> : <CheckCircle2 size={18} color="var(--color-1)" />}
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>MQ-2 Analog Circuit</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ADC Open/Short Checker</div>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>MQ-2 analog circuit</div>
+              <p className="mc-section-subtitle">ADC open/short integrity checker</p>
             </div>
           </div>
-          <span className={`status-badge ${mq2Fault ? 'badge-fault' : 'badge-normal'}`}>
-            {mq2Fault ? 'OPEN/SHORT' : 'HEALTHY'}
+          <span className={`mc-badge ${mq2Fault ? 'mc-badge-accent' : 'mc-badge-subtle'}`}>
+            {mq2Fault ? 'Open / Short' : 'Healthy'}
           </span>
         </div>
 
         {/* Flame Sensor Integrity */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '8px',
-          padding: '0.75rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {flameFault ? <ShieldOff size={18} color="#fb7185" /> : <CheckCircle2 size={18} color="#34d399" />}
+        <div
+          className="mc-card-nested"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 'var(--space-3) var(--space-4)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            {flameFault ? <ShieldOff size={18} color="var(--color-2)" /> : <CheckCircle2 size={18} color="var(--color-1)" />}
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Optical Flame Detector</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Digital IR Receiver</div>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>Optical flame detector</div>
+              <p className="mc-section-subtitle">Digital IR receiver circuit</p>
             </div>
           </div>
-          <span className={`status-badge ${flameFault ? 'badge-fault' : 'badge-normal'}`}>
-            {flameFault ? 'FAULT' : 'OPERATIONAL'}
+          <span className={`mc-badge ${flameFault ? 'mc-badge-accent' : 'mc-badge-subtle'}`}>
+            {flameFault ? 'Fault' : 'Operational'}
           </span>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

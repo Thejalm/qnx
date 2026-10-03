@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
+import Navbar from './components/Navbar';
 import LiveSensors from './components/LiveSensors';
 import ActuatorGrid from './components/ActuatorGrid';
 import RealtimeMetrics from './components/RealtimeMetrics';
 import SafetyEventsLog from './components/SafetyEventsLog';
 import FaultDiagnostics from './components/FaultDiagnostics';
+import CompareTab from './components/CompareTab';
+import AdaptiveSafetyGuardian from './components/AdaptiveSafetyGuardian';
 
 const API_BASE = 'http://localhost:8000/api';
 const WS_URL = 'ws://localhost:8000/ws/telemetry';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+
   const [sensorData, setSensorData] = useState({
     temperature: 26.5,
     humidity: 52.0,
@@ -133,24 +137,44 @@ export default function App() {
   }, []);
 
   return (
-    <div className="dashboard-container">
-      {/* Header Bar */}
-      <Header systemStatus={systemStatus} wsConnected={wsConnected} />
+    <main className="mc-dashboard">
+      {/* Navigation Header Bar with Tabs */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        systemStatus={systemStatus}
+        wsConnected={wsConnected}
+      />
 
-      {/* Real-Time Metrics Overview */}
-      <RealtimeMetrics systemStatus={systemStatus} sensorData={sensorData} />
+      {/* Tab 1: Live Safety & Telemetry Dashboard */}
+      {activeTab === 'dashboard' && (
+        <>
+          {/* Real-Time Metrics Overview */}
+          <RealtimeMetrics systemStatus={systemStatus} sensorData={sensorData} />
 
-      {/* Main Telemetry & Control Grid */}
-      <div className="grid-2-col">
-        <LiveSensors sensorData={sensorData} />
-        <ActuatorGrid actuatorState={actuatorState} />
-      </div>
+          {/* Main Telemetry & Control Grid */}
+          <div className="mc-grid-2">
+            <LiveSensors sensorData={sensorData} />
+            <ActuatorGrid actuatorState={actuatorState} />
+          </div>
 
-      {/* Events Log & Diagnostics Grid */}
-      <div className="grid-2-col">
-        <SafetyEventsLog events={events} />
-        <FaultDiagnostics sensorData={sensorData} systemStatus={systemStatus} />
-      </div>
-    </div>
+          {/* Events Log & Diagnostics Grid */}
+          <div className="mc-grid-2">
+            <SafetyEventsLog events={events} />
+            <FaultDiagnostics sensorData={sensorData} systemStatus={systemStatus} />
+          </div>
+        </>
+      )}
+
+      {/* Tab 2: Adaptive Safety & Resource Guardian */}
+      {activeTab === 'guardian' && (
+        <AdaptiveSafetyGuardian sensorData={sensorData} systemStatus={systemStatus} />
+      )}
+
+      {/* Tab 3: QNX vs Windows Python Latency Comparison (Simultaneous Live Stream) */}
+      {activeTab === 'compare' && (
+        <CompareTab sensorData={sensorData} wsConnected={wsConnected} />
+      )}
+    </main>
   );
 }

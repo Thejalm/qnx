@@ -1,5 +1,5 @@
 import React from 'react';
-import { Thermometer, Droplets, Gauge, Flame, Wind, AlertTriangle } from 'lucide-react';
+import { Thermometer, Droplets, Flame, Wind, AlertTriangle } from 'lucide-react';
 
 export default function LiveSensors({ sensorData }) {
   const temp = sensorData?.temperature ?? 26.5;
@@ -10,138 +10,118 @@ export default function LiveSensors({ sensorData }) {
   const flameDet = sensorData?.flame_detected ?? false;
   const flameAdc = sensorData?.flame_raw_adc ?? 3800;
 
-  // Gas level percent (0 - 4095 mapped to 0-100%)
+  // Gas level percent (0 - 3500 mapped to 0-100%)
   const gasPct = Math.min(100, Math.max(0, (gasAdc / 3500) * 100));
 
   return (
-    <div className="glass-card">
-      <div className="section-title">
-        <Wind size={20} color="#38bdf8" />
-        <span>ESP32-C3 Input Node Sensors (10 Hz Telemetry)</span>
+    <section className="mc-card">
+      <div className="mc-section-header">
+        <div className="mc-section-title">
+          <Wind size={20} color="var(--color-2)" />
+          <span>Input node sensor telemetry</span>
+        </div>
+        <span className="mc-badge mc-badge-subtle">
+          ESP32-C3 Node 1
+        </span>
       </div>
 
-      <div className="grid-3-col">
-        {/* Temperature Card */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+      <div className="mc-grid-3">
+        {/* BME280 Temperature */}
+        <div className="mc-card-nested">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>BME280 Temperature</span>
-            <Thermometer size={20} color={temp > 40 ? '#f43f5e' : temp > 32 ? '#f59e0b' : '#38bdf8'} />
+            <span className="mc-stat-label">BME280 temperature</span>
+            <Thermometer size={18} color={temp > 35 ? 'var(--color-2)' : 'var(--color-1)'} />
           </div>
-          <div style={{ marginTop: '0.8rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-            <span className="mono-val" style={{
-              fontSize: '2rem',
-              color: temp > 40 ? '#fb7185' : temp > 32 ? '#fbbf24' : '#f8fafc'
-            }}>
+          <div style={{ margin: 'var(--space-2) 0', display: 'flex', alignItems: 'baseline', gap: 'var(--space-1)' }}>
+            <span className="mc-stat-value mc-mono" style={{ color: temp > 35 ? 'var(--color-2)' : 'var(--color-1)' }}>
               {temp.toFixed(1)}
             </span>
-            <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>°C</span>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>°C</span>
           </div>
-          <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Safety Threshold: &gt;35°C (Fan) / &gt;50°C (Critical)
-          </div>
+          <p className="mc-section-subtitle">
+            Threshold: &gt;35°C fan / &gt;50°C critical
+          </p>
         </div>
 
-        {/* Humidity & Pressure */}
-        <div style={{
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        {/* Humidity & Barometer */}
+        <div className="mc-card-nested">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Humidity & Barometer</span>
-            <Droplets size={20} color="#06b6d4" />
+            <span className="mc-stat-label">Humidity and pressure</span>
+            <Droplets size={18} color="var(--color-1)" />
           </div>
-          <div style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ margin: 'var(--space-2) 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <div className="mono-val" style={{ fontSize: '1.4rem' }}>{hum.toFixed(1)}%</div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>RH Level</span>
+              <span className="mc-stat-value mc-mono">{hum.toFixed(1)}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginLeft: 'var(--space-1)' }}>% RH</span>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div className="mono-val" style={{ fontSize: '1.4rem' }}>{press.toFixed(0)}</div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>hPa Atmos</span>
+              <span className="mc-stat-value mc-mono">{press.toFixed(0)}</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginLeft: 'var(--space-1)' }}>hPa</span>
             </div>
           </div>
-          <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <p className="mc-section-subtitle">
             I2C Bus: GPIO 4 (SDA) / GPIO 5 (SCL)
-          </div>
+          </p>
         </div>
 
         {/* MQ-2 Flammable Gas Sensor */}
-        <div style={{
-          background: gasAlert || gasAdc > 1200 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.02)',
-          border: gasAlert || gasAdc > 1200 ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '12px',
-          padding: '1rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        <div className="mc-card-nested">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>MQ-2 Flammable Gas</span>
-            <AlertTriangle size={20} color={gasAlert || gasAdc > 1200 ? '#fbbf24' : '#10b981'} />
+            <span className="mc-stat-label">MQ-2 flammable gas</span>
+            <AlertTriangle size={18} color={gasAlert || gasAdc > 1200 ? 'var(--color-2)' : 'var(--text-secondary)'} />
           </div>
-          <div style={{ marginTop: '0.5rem' }}>
+          <div style={{ margin: 'var(--space-2) 0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span className="mono-val" style={{ fontSize: '1.8rem', color: gasAdc > 1500 ? '#fbbf24' : '#f8fafc' }}>
+              <span className="mc-stat-value mc-mono" style={{ color: gasAdc > 1500 ? 'var(--color-2)' : 'var(--color-1)' }}>
                 {gasAdc}
               </span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ADC / {gasPct.toFixed(0)}%</span>
+              <span className="mc-stat-label mc-mono">{gasPct.toFixed(0)}% ADC</span>
             </div>
-            {/* Progress bar */}
-            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', marginTop: '0.4rem', overflow: 'hidden' }}>
-              <div style={{
-                width: `${gasPct}%`,
-                height: '100%',
-                background: gasPct > 60 ? '#f43f5e' : gasPct > 35 ? '#f59e0b' : '#10b981',
-                transition: 'width 0.2s ease'
-              }} />
+            <div className="mc-meter">
+              <div
+                className="mc-meter-fill"
+                style={{
+                  width: `${gasPct}%`,
+                  backgroundColor: gasPct > 50 ? 'var(--color-2)' : 'var(--color-1)'
+                }}
+              />
             </div>
           </div>
-          <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: gasAlert ? '#fbbf24' : 'var(--text-muted)' }}>
-            Digital Trip: {gasAlert ? '⚠️ HAZARD ALERT' : 'NORMAL'}
-          </div>
+          <p className="mc-section-subtitle">
+            Digital alert: {gasAlert ? 'Hazard triggered' : 'Normal'}
+          </p>
         </div>
       </div>
 
-      {/* Flame Sensor Banner */}
-      <div style={{
-        marginTop: '1.25rem',
-        padding: '0.85rem 1.25rem',
-        borderRadius: '10px',
-        background: flameDet ? 'rgba(244, 63, 94, 0.2)' : 'rgba(255,255,255,0.02)',
-        border: flameDet ? '1px solid rgba(244, 63, 94, 0.6)' : '1px solid rgba(255,255,255,0.05)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        animation: flameDet ? 'pulse-critical 1s infinite' : 'none'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-          <Flame size={24} color={flameDet ? '#fb7185' : '#64748b'} />
+      {/* Optical Flame Detector Banner */}
+      <div
+        className="mc-card-nested"
+        style={{
+          marginTop: 'var(--space-4)',
+          backgroundColor: flameDet ? 'var(--color-2)' : 'var(--color-4)',
+          color: flameDet ? 'var(--color-6)' : 'var(--color-1)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 'var(--space-3)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <Flame size={24} color={flameDet ? 'var(--color-6)' : 'var(--color-2)'} />
           <div>
-            <div style={{ fontWeight: 700, color: flameDet ? '#fb7185' : 'var(--text-primary)' }}>
-              {flameDet ? '🔥 ACTIVE FLAME DETECTED - SUPPRESSION ENGAGED' : 'Optical IR Flame Detector: Clear'}
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-weight-bold)' }}>
+              {flameDet ? 'Active flame detected — suppression active' : 'Optical infrared flame detector: Clear'}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              IR Intensity: {flameAdc} ADC (Trigger threshold: &lt; 1000 ADC)
-            </div>
+            <p style={{ fontSize: 'var(--text-xs)', color: flameDet ? 'var(--color-6)' : 'var(--text-secondary)' }}>
+              IR intensity: {flameAdc} ADC (Trigger threshold &lt; 1000 ADC)
+            </p>
           </div>
         </div>
-        <span className={`status-badge ${flameDet ? 'badge-critical' : 'badge-normal'}`}>
-          {flameDet ? 'FIRE ALARM' : 'SAFE'}
+        <span className={`mc-badge ${flameDet ? 'mc-badge-dark' : 'mc-badge-subtle'}`}>
+          {flameDet ? 'Fire Critical' : 'Sensor Secure'}
         </span>
       </div>
-    </div>
+    </section>
   );
 }

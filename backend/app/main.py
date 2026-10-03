@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database.session import engine, Base
-from app.routers import system, sensors, events, devices, faults
+from app.routers import system, sensors, events, devices, faults, benchmark
 from app.services.qnx_sync import QnxSyncService
 
 # Auto create database tables
@@ -82,6 +82,7 @@ app.include_router(sensors.router, prefix=settings.API_V1_STR)
 app.include_router(events.router, prefix=settings.API_V1_STR)
 app.include_router(devices.router, prefix=settings.API_V1_STR)
 app.include_router(faults.router, prefix=settings.API_V1_STR)
+app.include_router(benchmark.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
