@@ -1,0 +1,41 @@
+# Node dependencies
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+.npm/
+
+# Python virtual environment and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+venv/
+.venv/
+env/
+
+# Databases and runtime data
+*.db
+*.sqlite3
+backend/qnx_safety.db
+
+# QNX Build Binaries and Objects
+*.o
+*.obj
+*.exe
+qnx_momentics/qnx_orchestrator
+qnx_momentics/*.o
+qnx_momentics/qnx_safety_events.log
+qnx_safety_events.log
+
+# Eclipse / Momentics Workspace metadata
+.metadata/
+qnx_workspace/.metadata/
+qnx_momentics/.metadata/
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.gemini/

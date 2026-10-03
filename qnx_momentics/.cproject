@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?>
+<cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="com.qnx.tools.ide.qde.core.qcc.configuration.debug.1">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.qnx.tools.ide.qde.core.qcc.configuration.debug.1" moduleId="org.eclipse.cdt.core.settings" name="QNX QCC Release">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildProperties="" id="com.qnx.tools.ide.qde.core.qcc.configuration.debug.1" name="QNX QCC Release" parent="org.eclipse.cdt.build.core.emptycfg">
+					<folderInfo id="com.qnx.tools.ide.qde.core.qcc.configuration.debug.1." name="/" resourcePath="">
+						<toolChain id="com.qnx.tools.ide.qde.core.qcc.toolChain.1" name="QNX QCC" superClass="com.qnx.tools.ide.qde.core.qcc.toolChain">
+							<targetPlatform id="com.qnx.tools.ide.qde.core.qcc.targetPlatform.1" name="QNX Target" superClass="com.qnx.tools.ide.qde.core.qcc.targetPlatform"/>
+							<builder command="C:\Users\Thejal\qnx800\host\win64\x86_64\usr\bin\make.exe" id="com.qnx.tools.ide.qde.core.qcc.builder.1" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="com.qnx.tools.ide.qde.core.qcc.builder"/>
+							<tool id="com.qnx.tools.ide.qde.core.qcc.compiler.1" name="QCC C/C++ Compiler" superClass="com.qnx.tools.ide.qde.core.qcc.compiler">
+								<option id="com.qnx.tools.ide.qde.core.qcc.compiler.include.1" name="Include paths" superClass="com.qnx.tools.ide.qde.core.qcc.compiler.include" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/include}&quot;"/>
+								</option>
+								<inputType id="com.qnx.tools.ide.qde.core.qcc.compiler.input.1" superClass="com.qnx.tools.ide.qde.core.qcc.compiler.input"/>
+							</tool>
+						</toolChain>
+					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="include"/>
+					</sourceEntries>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.envvar">
+				<variable name="PATH" operation="prepend" value="C:\Users\Thejal\qnx800\host\win64\x86_64\usr\bin;C:\Users\Thejal\qnx800\host\win64\x86_64\bin;"/>
+				<variable name="QNX_HOST" operation="replace" value="C:\Users\Thejal\qnx800\host\win64\x86_64"/>
+				<variable name="QNX_TARGET" operation="replace" value="C:\Users\Thejal\qnx800\target\qnx"/>
+				<variable name="QNX_CONFIGURATION" operation="replace" value="C:\Users\Thejal/.qnx"/>
+			</storageModule>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+</cproject>
