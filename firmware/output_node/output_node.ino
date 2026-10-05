@@ -326,6 +326,9 @@ void setup() {
 
     // 3. Initialize I2C and OLED Display
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+    Wire.setClock(400000); // 400kHz Fast I2C
+    delay(50);
+
     if (display.begin(SSD1306_SWITCHCAPVCC, SCREEN_I2C_ADDR)) {
         oled_initialized = true;
         display.clearDisplay();
@@ -339,6 +342,11 @@ void setup() {
     }
 
     last_valid_command_time = millis();
+
+    Serial.println("\n========================================================");
+    Serial.println("  QNX OUTPUT ACTUATOR NODE 2 (ESP32-C3) LIVE & READY");
+    Serial.println("  Send: $CMD,2,100,0,0,0,0,0,0,ALL_NORMAL*4E to test!");
+    Serial.println("========================================================\n");
 }
 
 // ============================================================================
