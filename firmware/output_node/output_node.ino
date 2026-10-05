@@ -324,21 +324,27 @@ void setup() {
     digitalWrite(PIN_LED_RED, LOW);
     digitalWrite(PIN_STATUS_LED, LOW);
 
-    // 3. Initialize I2C and OLED Display
+    // 3. Initialize I2C and OLED Display safely (with timeout so it never hangs)
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
-    Wire.setClock(400000); // 400kHz Fast I2C
+    Wire.setTimeOut(25); // 25 ms timeout to prevent any I2C lockup
     delay(50);
 
-    if (display.begin(SSD1306_SWITCHCAPVCC, SCREEN_I2C_ADDR)) {
-        oled_initialized = true;
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setTextColor(SSD1306_WHITE);
-        display.setCursor(10, 20);
-        display.println("QNX ACTUATOR NODE");
-        display.setCursor(10, 35);
-        display.println("READY & AWAITING");
-        display.display();
+    // Scan if OLED exists at 0x3C or 0x3D
+    Wire.beginTransmission(0x3C);
+    if (Wire.endTransmission() == 0) {
+        if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+            oled_initialized = true;
+            display.clearDisplay();
+            display.setTextSize(1);
+            display.setTextColor(SSD1306_WHITE);
+            display.setCursor(10, 20);
+            display.println("QNX ACTUATOR NODE");
+            display.setCursor(10, 35);
+            display.println("READY & AWAITING");
+            display.display();
+        }
+    } else {
+        oled_initialized = false;
     }
 
     last_valid_command_time = millis();
@@ -352,6 +358,8 @@ void setup() {
 // ============================================================================
 // ARDUINO MAIN LOOP
 // ============================================================================
+unsigned long last_periodic_ack = 0;
+
 void loop() {
     unsigned long current_time = millis();
 
@@ -380,12 +388,18 @@ void loop() {
     }
 
     // 3. Periodic OLED Update (5 Hz / 200 ms)
-    if (current_time - last_display_update >= 200) {
+    if (oled_initialized && (current_time - last_display_update >= 200)) {
         last_display_update = current_time;
         update_oled_display();
     }
 
-    // 4. Heartbeat LED Blink (Toggle every 500ms)
+    // 4. Periodic Serial Status Heartbeat (1 Hz)
+    if (current_time - last_periodic_ack >= 1000) {
+        last_periodic_ack = current_time;
+        send_ack_packet(last_received_seq);
+    }
+
+    // 5. Heartbeat LED Blink (Toggle every 500ms)
     if (current_time - last_heartbeat_toggle >= 500) {
         last_heartbeat_toggle = current_time;
         heartbeat_state = !heartbeat_state;
