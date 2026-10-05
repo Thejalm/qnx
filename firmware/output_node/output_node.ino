@@ -304,7 +304,13 @@ bool parse_command_packet(char* packet_str) {
 // ============================================================================
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    delay(1000);
+    // Wait for USB CDC Serial to connect (up to 3 seconds)
+    unsigned long start_wait = millis();
+    while(!Serial && (millis() - start_wait < 3000)) {
+        delay(10);
+    }
+    Serial.println("\n[DEBUG] Serial initialized.");
+    delay(100);
 
     // 1. Configure Actuator Pins as Outputs
     pinMode(PIN_BUZZER_1, OUTPUT);
@@ -324,14 +330,18 @@ void setup() {
     digitalWrite(PIN_LED_RED, LOW);
     digitalWrite(PIN_STATUS_LED, LOW);
 
+    Serial.println("[DEBUG] Starting I2C Init...");
     // 3. Initialize I2C and OLED Display safely (with timeout so it never hangs)
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
     Wire.setTimeOut(25); // 25 ms timeout to prevent any I2C lockup
     delay(50);
 
+    Serial.println("[DEBUG] Scanning for OLED at 0x3C...");
     // Scan if OLED exists at 0x3C or 0x3D
     Wire.beginTransmission(0x3C);
-    if (Wire.endTransmission() == 0) {
+    uint8_t i2c_err = Wire.endTransmission();
+    Serial.printf("[DEBUG] I2C Scan result: %d\n", i2c_err);
+    if (i2c_err == 0) {
         if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
             oled_initialized = true;
             display.clearDisplay();
@@ -342,8 +352,13 @@ void setup() {
             display.setCursor(10, 35);
             display.println("READY & AWAITING");
             display.display();
+            Serial.println("[DEBUG] OLED Initialized Successfully.");
+        } else {
+            Serial.println("[DEBUG] OLED display.begin() failed.");
+            oled_initialized = false;
         }
     } else {
+        Serial.println("[DEBUG] OLED not found on I2C bus.");
         oled_initialized = false;
     }
 
