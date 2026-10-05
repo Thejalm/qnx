@@ -22,15 +22,17 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
+#include <Adafruit_BMP280.h>
+
 // ============================================================================
 // CONFIGURATION & PIN DEFINITIONS (ESP32-C3 16-Pin)
 // ============================================================================
 #define NODE_ID             1
-#define FIRMWARE_VERSION    "1.0.0"
+#define FIRMWARE_VERSION    "1.1.0"
 #define SERIAL_BAUD_RATE    115200
 #define SAMPLING_PERIOD_MS  100    // 10 Hz deterministic acquisition rate
 
-// I2C Pins for BME280
+// I2C Pins for BME280 / BMP280
 #define PIN_I2C_SDA         4
 #define PIN_I2C_SCL         5
 
@@ -49,7 +51,9 @@
 // GLOBAL OBJECTS & STATE VARIABLES
 // ============================================================================
 Adafruit_BME280 bme; // I2C BME280 instance
+Adafruit_BMP280 bmp; // I2C BMP280 instance (fallback if chip is BMP280)
 bool bme_detected = false;
+bool bmp_detected = false;
 
 uint32_t sequence_number = 0;
 unsigned long last_sample_time = 0;
@@ -89,16 +93,27 @@ uint8_t calculate_xor_checksum(const char* data, size_t len) {
 void acquire_sensors(SensorData &data) {
     data.fault_flags = 0x00;
 
-    // 1. Read BME280
+    // 1. Read BME280 or BMP280
     if (bme_detected) {
         data.temperature = bme.readTemperature();
         data.humidity    = bme.readHumidity();
         data.pressure    = bme.readPressure() / 100.0F; // Convert Pa to hPa
 
-        // Sanity range check for physical environments
         if (isnan(data.temperature) || isnan(data.humidity) || isnan(data.pressure) ||
             data.temperature < -40.0f || data.temperature > 85.0f) {
-            data.fault_flags |= (1 << 0); // BME280 Fault Flag
+            data.fault_flags |= (1 << 0);
+            data.temperature = -999.0f;
+            data.humidity    = -999.0f;
+            data.pressure    = -999.0f;
+        }
+    } else if (bmp_detected) {
+        data.temperature = bmp.readTemperature();
+        data.humidity    = 50.0f; // BMP280 does not have humidity; default to nominal 50%
+        data.pressure    = bmp.readPressure() / 100.0F;
+
+        if (isnan(data.temperature) || isnan(data.pressure) ||
+            data.temperature < -40.0f || data.temperature > 85.0f) {
+            data.fault_flags |= (1 << 0);
             data.temperature = -999.0f;
             data.humidity    = -999.0f;
             data.pressure    = -999.0f;
@@ -112,31 +127,24 @@ void acquire_sensors(SensorData &data) {
 
     // 2. Read MQ-2 Gas Sensor
     data.mq2_raw_adc = analogRead(PIN_MQ2_ANALOG);
-    // Active LOW digital sensor output inverted for positive logic (1 = Alert)
     data.mq2_digital_alert = (digitalRead(PIN_MQ2_DIGITAL) == LOW);
     
-    // Wire open/short validation (ADC range check)
     if (data.mq2_raw_adc < 5 || data.mq2_raw_adc > 4090) {
-        // Potential wire fault or saturation
         data.fault_flags |= (1 << 1);
     }
 
     // 3. Read Flame Sensor
-    // Digital trigger is active LOW on flame detection
     data.flame_detected = (digitalRead(PIN_FLAME_DIGITAL) == LOW);
     data.flame_raw_adc  = analogRead(PIN_FLAME_ANALOG);
 }
 
 /**
  * Builds and transmits the telemetry packet over USB/Serial:
- * Format:
- * $IN,NODE_ID,SEQ,TIMESTAMP_MS,TEMP_C,HUM_PCT,PRESS_HPA,MQ2_ADC,MQ2_ALERT,FLAME_DET,FLAME_ADC,FAULT_FLAGS*CHECKSUM\r\n
  */
 void send_telemetry_packet(const SensorData &data, unsigned long timestamp_ms) {
     char payload[180];
     char full_packet[200];
 
-    // Prepare comma-separated payload without leading '$' or trailing '*'
     snprintf(payload, sizeof(payload),
              "IN,%u,%lu,%lu,%.2f,%.2f,%.2f,%d,%d,%d,%d,%u",
              NODE_ID,
@@ -151,13 +159,8 @@ void send_telemetry_packet(const SensorData &data, unsigned long timestamp_ms) {
              data.flame_raw_adc,
              data.fault_flags);
 
-    // Compute checksum over payload
     uint8_t checksum = calculate_xor_checksum(payload, strlen(payload));
-
-    // Construct final framed message
     snprintf(full_packet, sizeof(full_packet), "$%s*%02X\r\n", payload, checksum);
-
-    // Output over Hardware Serial
     Serial.print(full_packet);
 
     sequence_number++;
@@ -167,38 +170,38 @@ void send_telemetry_packet(const SensorData &data, unsigned long timestamp_ms) {
 // ARDUINO SETUP
 // ============================================================================
 void setup() {
-    // 1. Initialize Serial Communication
     Serial.begin(SERIAL_BAUD_RATE);
-    delay(1000); // Allow hardware USB CDC / UART to stabilize
+    delay(1000);
 
-    // 2. Configure GPIO Modes
     pinMode(PIN_MQ2_DIGITAL, INPUT_PULLUP);
     pinMode(PIN_FLAME_DIGITAL, INPUT_PULLUP);
     pinMode(PIN_STATUS_LED, OUTPUT);
     digitalWrite(PIN_STATUS_LED, LOW);
 
-    // Configure ADC resolution (12-bit: 0 - 4095)
     analogReadResolution(12);
 
-    // 3. Initialize I2C Bus for ESP32-C3
+    // Initialize I2C
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+    delay(100);
 
-    // 4. Initialize BME280 (Address 0x76 or 0x77)
+    // Try BME280 at 0x76 & 0x77
     if (bme.begin(0x76, &Wire)) {
         bme_detected = true;
     } else if (bme.begin(0x77, &Wire)) {
         bme_detected = true;
-    } else {
-        bme_detected = false;
-        // BME280 not found - will be flagged in telemetry fault_flags
+    } 
+    // Fallback: Try BMP280 at 0x76 & 0x77
+    else if (bmp.begin(0x76)) {
+        bmp_detected = true;
+    } else if (bmp.begin(0x77)) {
+        bmp_detected = true;
     }
 
-    // Set BME280 sampling parameters optimized for real-time safety monitoring
     if (bme_detected) {
         bme.setSampling(Adafruit_BME280::MODE_NORMAL,
-                        Adafruit_BME280::SAMPLING_X2,  // temperature
-                        Adafruit_BME280::SAMPLING_X16, // pressure
-                        Adafruit_BME280::SAMPLING_X1,  // humidity
+                        Adafruit_BME280::SAMPLING_X2,
+                        Adafruit_BME280::SAMPLING_X16,
+                        Adafruit_BME280::SAMPLING_X1,
                         Adafruit_BME280::FILTER_X16,
                         Adafruit_BME280::STANDBY_MS_0_5);
     }
