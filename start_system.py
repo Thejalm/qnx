@@ -28,35 +28,43 @@ def main():
     processes = []
 
     try:
-        # 1. Start Input Node Simulator (Port 9001)
-        print("[1/4] Starting ESP32-C3 Input Node Telemetry Stream (Port 9001)...")
-        p_in = subprocess.Popen(
-            [python_exe, "firmware/simulator/input_node_sim.py", "--mode", "fluctuating"],
-            cwd=root_dir
-        )
-        processes.append(("Input Node", p_in))
+        # 1. Start Input Node Streamer (Hardware bridge if --hardware, otherwise Simulator)
+        if "--hardware" in sys.argv:
+            print("[1/4] Starting Hardware USB-Serial Bridge for ESP32 Node 1 on COM9 (Port 9001)...")
+            p_in = subprocess.Popen(
+                [python_exe, "qnx_momentics/node_bridge.py", "--input-com", "COM9", "--in-port", "9001", "--master-ip", "10.61.30.60"],
+                cwd=root_dir
+            )
+            processes.append(("Hardware Input Bridge", p_in))
+        else:
+            print("[1/4] Starting ESP32-C3 Input Node Telemetry Stream (Port 9001 -> Master 10.61.30.60)...")
+            p_in = subprocess.Popen(
+                [python_exe, "firmware/simulator/input_node_sim.py", "--mode", "fluctuating", "--qnx-ip", "10.61.30.60"],
+                cwd=root_dir
+            )
+            processes.append(("Input Node", p_in))
         time.sleep(1.0)
 
         # 2. Start Output Node Simulator (Port 9002)
-        print("[2/4] Starting ESP32-C3 Output Node & OLED Simulator (Port 9002)...")
+        print("[2/4] Starting ESP32-C3 Output Node & OLED Simulator (Port 9002 -> Master 10.61.30.60)...")
         p_out = subprocess.Popen(
-            [python_exe, "firmware/simulator/output_node_sim.py"],
+            [python_exe, "firmware/simulator/output_node_sim.py", "--qnx-ip", "10.61.30.60"],
             cwd=root_dir
         )
         processes.append(("Output Node", p_out))
         time.sleep(1.0)
 
-        # 3. Optional: Host Simulation of QNX Master (only if --sim flag passed)
+        # 3. Host Simulation of QNX Master or Live Target
         if "--sim" in sys.argv:
-            print("[3/4] Starting Host Python QNX Master Simulator...")
+            print("[3/4] Starting Host Python QNX Master Simulator (Connecting 10.61.30.220 <-> 10.61.30.60)...")
             p_qnx = subprocess.Popen(
-                [python_exe, "qnx_momentics/qnx_orchestrator_sim.py"],
+                [python_exe, "qnx_momentics/qnx_orchestrator_sim.py", "--in-ip", "10.61.30.220", "--out-ip", "10.61.30.60"],
                 cwd=root_dir
             )
             processes.append(("QNX Master Sim", p_qnx))
             time.sleep(1.0)
         else:
-            print("[3/4] QNX Master Mode: Ready for QNX Momentics IDE / VMware VM (192.168.160.129)")
+            print("[3/4] QNX Master Mode: Ready for Output Node / QNX Master Target (10.61.30.60)")
 
         # 4. Start FastAPI Backend (Port 8000)
         print("[4/4] Starting FastAPI Backend & Real-Time Sync Engine (Port 8000)...")

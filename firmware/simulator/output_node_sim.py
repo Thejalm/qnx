@@ -191,15 +191,15 @@ def run_server(port=9002):
             sim.render_oled_ui()
             time.sleep(0.5) # 2 Hz UI update
 
-    # Background auto-connector to QNX VM (192.168.160.129:9002)
+    # Background auto-connector to QNX Master
     def qnx_output_auto_connector():
         while sim.running:
             try:
                 qs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 qs.settimeout(1.0)
-                qs.connect(("192.168.160.129", port))
+                qs.connect((qnx_ip, port))
                 qs.setblocking(True)
-                print(f"\n[OUTPUT NODE SIM] Connected directly to QNX VM Command Channel (192.168.160.129:{port})")
+                print(f"\n[OUTPUT NODE SIM] Connected directly to QNX Master Command Channel ({qnx_ip}:{port})")
                 handle_client(qs, sim)
             except Exception:
                 pass
@@ -222,6 +222,7 @@ def run_server(port=9002):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Simulated ESP32-C3 Output Node")
     parser.add_argument("--port", type=int, default=9002, help="TCP port for command receiver (default: 9002)")
+    parser.add_argument("--qnx-ip", type=str, default="10.61.30.60", help="QNX Master IP (default: 10.61.30.60)")
     args = parser.parse_args()
 
-    run_server(port=args.port)
+    run_server(port=args.port, qnx_ip=args.qnx_ip)

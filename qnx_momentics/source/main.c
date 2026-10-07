@@ -28,9 +28,9 @@ int main(int argc, char** argv) {
     // 1. Initialize Configuration
     CommConfig comm_cfg;
     memset(&comm_cfg, 0, sizeof(comm_cfg));
-    strncpy(comm_cfg.input_node_ip, "192.168.160.1", sizeof(comm_cfg.input_node_ip) - 1);
+    strncpy(comm_cfg.input_node_ip, "10.61.30.220", sizeof(comm_cfg.input_node_ip) - 1);
     comm_cfg.input_node_port = 9001;
-    strncpy(comm_cfg.output_node_ip, "192.168.160.1", sizeof(comm_cfg.output_node_ip) - 1);
+    strncpy(comm_cfg.output_node_ip, "10.61.30.60", sizeof(comm_cfg.output_node_ip) - 1);
     comm_cfg.output_node_port = 9002;
     comm_cfg.backend_sync_port = 8000;
 

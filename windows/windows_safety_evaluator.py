@@ -188,5 +188,6 @@ class WindowsSafetyEvaluator:
         print("=" * 85 + "\n")
 
 if __name__ == "__main__":
-    evaluator = WindowsSafetyEvaluator()
+    host = sys.argv[1] if len(sys.argv) > 1 else "10.61.30.220"
+    evaluator = WindowsSafetyEvaluator(host=host)
     evaluator.run()

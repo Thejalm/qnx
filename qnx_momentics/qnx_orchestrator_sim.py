@@ -35,8 +35,10 @@ def calculate_xor_checksum(payload: str) -> str:
     return f"{checksum:02X}"
 
 class QnxSafetyOrchestrator:
-    def __init__(self, in_port=9001, out_port=9002, backend_port=8000):
+    def __init__(self, in_ip="10.61.30.220", in_port=9001, out_ip="10.61.30.60", out_port=9002, backend_port=8000):
+        self.in_ip = in_ip
         self.in_port = in_port
+        self.out_ip = out_ip
         self.out_port = out_port
         self.backend_port = backend_port
 
@@ -62,25 +64,29 @@ class QnxSafetyOrchestrator:
         self.log_file.flush()
 
     def connect_nodes(self):
-        # Connect to Input Node
+        # Connect to Input Node (Node 1)
         if self.in_sock is None:
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(0.2)
-                s.connect(("127.0.0.1", self.in_port))
-                self.in_sock = s
-            except Exception:
-                self.in_sock = None
+            for ip in [self.in_ip, "127.0.0.1"]:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(0.2)
+                    s.connect((ip, self.in_port))
+                    self.in_sock = s
+                    break
+                except Exception:
+                    continue
 
-        # Connect to Output Node
+        # Connect to Output Node (Master)
         if self.out_sock is None:
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(0.2)
-                s.connect(("127.0.0.1", self.out_port))
-                self.out_sock = s
-            except Exception:
-                self.out_sock = None
+            for ip in [self.out_ip, "127.0.0.1"]:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(0.2)
+                    s.connect((ip, self.out_port))
+                    self.out_sock = s
+                    break
+                except Exception:
+                    continue
 
     def evaluate_safety(self, tel: dict, is_comm_healthy: bool) -> tuple:
         """
@@ -201,11 +207,16 @@ class QnxSafetyOrchestrator:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="QNX Master Orchestrator")
+    parser.add_argument("--in-ip", type=str, default="10.61.30.220", help="Node 1 (Input Node) IP")
     parser.add_argument("--in-port", type=int, default=9001)
+    parser.add_argument("--out-ip", type=str, default="10.61.30.60", help="Output Node / Master IP")
     parser.add_argument("--out-port", type=int, default=9002)
     args = parser.parse_args()
 
-    orchestrator = QnxSafetyOrchestrator(in_port=args.in_port, out_port=args.out_port)
+    orchestrator = QnxSafetyOrchestrator(
+        in_ip=args.in_ip, in_port=args.in_port,
+        out_ip=args.out_ip, out_port=args.out_port
+    )
     try:
         orchestrator.run()
     except KeyboardInterrupt:

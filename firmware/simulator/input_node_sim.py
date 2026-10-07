@@ -134,7 +134,7 @@ class InputNodeSimulator:
             sys.stdout.flush()
             time.sleep(0.1)
 
-def run_server(port=9001, mode="fluctuating"):
+def run_server(port=9001, mode="fluctuating", qnx_ip="10.61.30.60"):
     sim = InputNodeSimulator(mode=mode)
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -142,13 +142,13 @@ def run_server(port=9001, mode="fluctuating"):
     server.listen(10)
 
     print(f"[INPUT NODE SIM] Multi-Client Streamer started on 0.0.0.0:{port}")
-    print(f"[INPUT NODE SIM] Ready for QNX Master and Backend connections.")
+    print(f"[INPUT NODE SIM] Ready for QNX Master ({qnx_ip}) and Backend connections.")
 
     # Start broadcast thread
     t = threading.Thread(target=sim.broadcast_loop, daemon=True)
     t.start()
 
-    # Background auto-connector to QNX VM (192.168.160.129:9001)
+    # Background auto-connector to QNX Master
     def qnx_auto_connector():
         while sim.running:
             try:
@@ -158,7 +158,7 @@ def run_server(port=9001, mode="fluctuating"):
                     for c in sim.clients:
                         try:
                             peer = c.getpeername()
-                            if peer[0] == "192.168.160.129":
+                            if peer[0] == qnx_ip:
                                 has_qnx = True
                                 break
                         except Exception:
@@ -166,11 +166,11 @@ def run_server(port=9001, mode="fluctuating"):
                 if not has_qnx:
                     qs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     qs.settimeout(1.0)
-                    qs.connect(("192.168.160.129", port))
+                    qs.connect((qnx_ip, port))
                     qs.setblocking(True)
                     with sim.lock:
                         sim.clients.append(qs)
-                    print(f"\n[INPUT NODE SIM] Auto-connected stream directly to QNX VM (192.168.160.129:{port})")
+                    print(f"\n[INPUT NODE SIM] Auto-connected stream directly to QNX Master ({qnx_ip}:{port})")
             except Exception:
                 pass
             time.sleep(2.0)
@@ -194,6 +194,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Simulated ESP32-C3 Input Node")
     parser.add_argument("--port", type=int, default=9001)
     parser.add_argument("--mode", type=str, default="fluctuating")
+    parser.add_argument("--qnx-ip", type=str, default="10.61.30.60", help="QNX Master IP")
     args = parser.parse_args()
 
-    run_server(port=args.port, mode=args.mode)
+    run_server(port=args.port, mode=args.mode, qnx_ip=args.qnx_ip)
