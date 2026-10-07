@@ -314,6 +314,9 @@ bool comm_manager_send_command(const char* cmd_buffer, size_t len) {
                        inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
                 fflush(stdout);
             }
+        }
+    }
+
     // Also attempt outbound connection to output_node_ip if not connected
     if (s_output_sock < 0 && s_config.output_node_ip[0] != '\0') {
         static uint64_t s_last_out_try_ns = 0;
