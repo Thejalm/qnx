@@ -1,12 +1,14 @@
 """
 ==============================================================================
 Project: QNX-Based Fully Wired Real-Time Safety & Automation Orchestrator
-Component: Node Computer Serial-to-Ethernet Gateway Bridge
+Component: Physical Hardware Serial-to-Ethernet Gateway Bridge
 Description:
-    Runs on the intermediate Node Computer (10.61.30.220) connected to physical
-    USB-Serial ESP32 boards (COM9). Bridges incoming sensor frames over Ethernet
-    to the QNX Master / Output Node (10.61.30.60), and serves local telemetry
-    subscribers (Backend / Dashboard).
+    Bridges physical USB-Serial ESP32 hardware to the real-time network:
+    - Input Mode  : Reads $IN sensor frames from ESP32 Input Node and streams
+                    over TCP port 9001 (Node 1 Laptop: 10.61.30.220).
+    - Output Mode : Receives $CMD packets from QNX Master over TCP port 9002,
+                    forwards to physical ESP32 Output Node, and routes $ACK back
+                    (Master Laptop: 10.61.30.60).
 ==============================================================================
 """
 
@@ -25,7 +27,10 @@ try:
 except ImportError:
     HAS_SERIAL = False
 
-class SerialBridge:
+# ============================================================================
+# INPUT NODE SERIAL BRIDGE (Sensors Acquisition -> TCP 9001)
+# ============================================================================
+class InputNodeBridge:
     def __init__(self, com_port="COM9", baud_rate=115200, tcp_port=9001, target_master_ip="10.61.30.60"):
         self.com_port = com_port
         self.baud_rate = baud_rate
@@ -39,17 +44,17 @@ class SerialBridge:
     def open_serial(self):
         while self.running:
             try:
-                print(f"[NODE BRIDGE] Attempting to open serial {self.com_port} @ {self.baud_rate}...")
+                print(f"[INPUT BRIDGE] Attempting to open serial {self.com_port} @ {self.baud_rate}...")
                 self.ser = serial.Serial(self.com_port, self.baud_rate, timeout=0.2)
-                print(f"[NODE BRIDGE] Successfully connected to {self.com_port}!")
+                print(f"[INPUT BRIDGE] Successfully opened {self.com_port} (ESP32-C3 Node 1)")
                 return True
             except Exception as e:
-                print(f"[NODE BRIDGE WARN] Could not open {self.com_port} ({e}). Retrying in 2s...")
+                print(f"[INPUT BRIDGE WARN] Could not open {self.com_port} ({e}). Retrying in 2s...")
                 time.sleep(2.0)
         return False
 
     def auto_connect_master(self):
-        """Proactively connects to QNX Master if it runs a TCP server."""
+        """Proactively connects to QNX Master if it runs an inbound TCP server."""
         while self.running:
             try:
                 has_master = False
@@ -68,7 +73,7 @@ class SerialBridge:
                     ms.setblocking(True)
                     with self.lock:
                         self.clients.append(ms)
-                    print(f"\n[NODE BRIDGE] Connected outbound stream directly to Master ({self.target_master_ip}:{self.tcp_port})")
+                    print(f"\n[INPUT BRIDGE] Outbound link connected directly to Master ({self.target_master_ip}:{self.tcp_port})")
             except Exception:
                 pass
             time.sleep(3.0)
@@ -78,7 +83,7 @@ class SerialBridge:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("0.0.0.0", self.tcp_port))
         server.listen(5)
-        print(f"[NODE BRIDGE] TCP Telemetry Server listening on 0.0.0.0:{self.tcp_port}")
+        print(f"[INPUT BRIDGE] Telemetry Server listening on 0.0.0.0:{self.tcp_port}")
 
         while self.running:
             try:
@@ -86,24 +91,23 @@ class SerialBridge:
                 client.setblocking(True)
                 with self.lock:
                     self.clients.append(client)
-                print(f"\n[NODE BRIDGE] Client connected from {addr} (Total: {len(self.clients)})")
+                print(f"\n[INPUT BRIDGE] Client connected from {addr} (Total: {len(self.clients)})")
             except Exception:
                 break
         server.close()
 
     def run(self):
         if not HAS_SERIAL:
-            print("[NODE BRIDGE ERROR] pyserial is not installed! Run: pip install pyserial")
+            print("[INPUT BRIDGE ERROR] pyserial is not installed! Run: pip install pyserial")
             return
 
-        # Start TCP listener thread
         t_server = threading.Thread(target=self.listen_server, daemon=True)
         t_server.start()
 
-        # Start master auto-connector thread
         t_master = threading.Thread(target=self.auto_connect_master, daemon=True)
         t_master.start()
 
+        frame_count = 0
         while self.running:
             if self.ser is None or not self.ser.is_open:
                 if not self.open_serial():
@@ -113,6 +117,11 @@ class SerialBridge:
                 line = self.ser.readline().decode('ascii', errors='ignore').strip()
                 if line and (line.startswith('$IN') or line.startswith('$TEL')):
                     data = (line + "\r\n").encode('ascii')
+                    frame_count += 1
+                    if frame_count % 50 == 0:
+                        sys.stdout.write(f"\r[INPUT BRIDGE] Streamed {frame_count} frames | Latest: {line[:55]}... ")
+                        sys.stdout.flush()
+
                     with self.lock:
                         dead_clients = []
                         for c in self.clients:
@@ -127,7 +136,7 @@ class SerialBridge:
                                 pass
                             self.clients.remove(dc)
             except Exception as e:
-                print(f"[NODE BRIDGE] Serial read error: {e}")
+                print(f"\n[INPUT BRIDGE] Serial read error: {e}")
                 if self.ser:
                     try:
                         self.ser.close()
@@ -136,26 +145,122 @@ class SerialBridge:
                 self.ser = None
                 time.sleep(1.0)
 
+# ============================================================================
+# OUTPUT NODE SERIAL BRIDGE (TCP 9002 -> Actuators & OLED Hardware)
+# ============================================================================
+class OutputNodeBridge:
+    def __init__(self, com_port="COM4", baud_rate=115200, tcp_port=9002):
+        self.com_port = com_port
+        self.baud_rate = baud_rate
+        self.tcp_port = tcp_port
+        self.running = True
+        self.ser = None
+
+    def open_serial(self):
+        while self.running:
+            try:
+                print(f"[OUTPUT BRIDGE] Attempting to open serial {self.com_port} @ {self.baud_rate}...")
+                self.ser = serial.Serial(self.com_port, self.baud_rate, timeout=0.1)
+                print(f"[OUTPUT BRIDGE] Successfully connected to {self.com_port} (ESP32-C3 Output Node)")
+                return True
+            except Exception as e:
+                print(f"[OUTPUT BRIDGE WARN] Could not open {self.com_port} ({e}). Retrying in 2s...")
+                time.sleep(2.0)
+        return False
+
+    def handle_client(self, client, addr):
+        print(f"[OUTPUT BRIDGE] QNX Master connected from {addr}")
+        buffer = ""
+        while self.running:
+            try:
+                # Read from socket
+                data = client.recv(256).decode('ascii', errors='ignore')
+                if not data:
+                    break
+                buffer += data
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    line = line.strip()
+                    if line.startswith('$CMD'):
+                        # Forward $CMD to physical ESP32 Output Node
+                        if self.ser and self.ser.is_open:
+                            self.ser.write((line + "\r\n").encode('ascii'))
+                            self.ser.flush()
+                            sys.stdout.write(f"\r[OUTPUT BRIDGE] Forwarded to ESP32: {line[:50]}... ")
+                            sys.stdout.flush()
+
+                # Read ACK from ESP32 and forward back to QNX Master
+                if self.ser and self.ser.is_open and self.ser.in_waiting > 0:
+                    ack_line = self.ser.readline().decode('ascii', errors='ignore').strip()
+                    if ack_line.startswith('$ACK'):
+                        client.sendall((ack_line + "\r\n").encode('ascii'))
+            except (ConnectionResetError, BrokenPipeError):
+                break
+            except Exception:
+                time.sleep(0.01)
+
+        print(f"\n[OUTPUT BRIDGE] QNX Master disconnected from {addr}")
+        client.close()
+
+    def run(self):
+        if not HAS_SERIAL:
+            print("[OUTPUT BRIDGE ERROR] pyserial is not installed! Run: pip install pyserial")
+            return
+
+        if not self.open_serial():
+            return
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("0.0.0.0", self.tcp_port))
+        server.listen(1)
+        print(f"[OUTPUT BRIDGE] Actuator Command Server listening on 0.0.0.0:{self.tcp_port}")
+
+        while self.running:
+            try:
+                client, addr = server.accept()
+                client.setblocking(True)
+                self.handle_client(client, addr)
+            except Exception:
+                break
+        server.close()
+
+# ============================================================================
+# MAIN ENTRYPOINT
+# ============================================================================
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Node Computer Serial-to-Ethernet Bridge")
+    parser = argparse.ArgumentParser(description="Physical ESP32 Serial-to-Ethernet Bridge")
+    parser.add_argument("--role", type=str, choices=["input", "output"], default="input",
+                        help="Role of this bridge: 'input' (Sensor Node) or 'output' (Actuator Node)")
     parser.add_argument("--input-com", type=str, default="COM9", help="Input Node USB COM Port (default: COM9)")
+    parser.add_argument("--output-com", type=str, default="COM4", help="Output Node USB COM Port (default: COM4)")
     parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate (default: 115200)")
     parser.add_argument("--in-port", type=int, default=9001, help="TCP Port for Input Telemetry (default: 9001)")
+    parser.add_argument("--out-port", type=int, default=9002, help="TCP Port for Output Commands (default: 9002)")
     parser.add_argument("--master-ip", type=str, default="10.61.30.60", help="Target Master IP (default: 10.61.30.60)")
     args = parser.parse_args()
 
     print("=" * 70)
-    print("  NODE COMPUTER USB-SERIAL <-> ETHERNET LAN BRIDGE")
-    print("=" * 70)
-    print(f"Local Node 1 IP : 10.61.30.220")
-    print(f"Input Node COM  : {args.input_com} @ {args.baud} baud")
-    print(f"TCP Stream Port : {args.in_port}")
-    print(f"Target Master IP: {args.master_ip}")
+    print("  PHYSICAL HARDWARE USB-SERIAL <-> ETHERNET LAN BRIDGE (NO SIMULATION)")
     print("=" * 70)
 
-    bridge = SerialBridge(com_port=args.input_com, baud_rate=args.baud, tcp_port=args.in_port, target_master_ip=args.master_ip)
+    if args.role == "input":
+        print(f"Role            : INPUT NODE (Sensors Acquisition)")
+        print(f"USB COM Port    : {args.input_com} @ {args.baud} baud")
+        print(f"TCP Stream Port : {args.in_port}")
+        print(f"Target Master IP: {args.master_ip}")
+        print("=" * 70)
+        bridge = InputNodeBridge(com_port=args.input_com, baud_rate=args.baud,
+                                 tcp_port=args.in_port, target_master_ip=args.master_ip)
+    else:
+        print(f"Role            : OUTPUT NODE (Actuators, Relays & OLED)")
+        print(f"USB COM Port    : {args.output_com} @ {args.baud} baud")
+        print(f"TCP Command Port: {args.out_port}")
+        print("=" * 70)
+        bridge = OutputNodeBridge(com_port=args.output_com, baud_rate=args.baud, tcp_port=args.out_port)
+
     try:
         bridge.run()
     except KeyboardInterrupt:
-        print("\n[NODE BRIDGE] Shutting down.")
+        print("\n[HARDWARE BRIDGE] Shutting down.")
         bridge.running = False
