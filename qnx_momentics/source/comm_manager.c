@@ -108,7 +108,6 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
             return false;
         }
     }
-#else
     // 1. Check for incoming connection on s_listen_in if not connected
     if (s_input_sock < 0 && s_listen_in >= 0) {
         fd_set read_fds;
@@ -128,6 +127,36 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
                 fflush(stdout);
                 s_rx_stream_len = 0;
                 s_rx_stream_buf[0] = '\0';
+            }
+        }
+    }
+
+    // 2. Also attempt proactive outbound connection to input_node_ip if not connected
+    if (s_input_sock < 0 && s_config.input_node_ip[0] != '\0') {
+        static uint64_t s_last_conn_try_ns = 0;
+        uint64_t now_ns = get_monotonic_time_ns();
+        if (now_ns - s_last_conn_try_ns >= 1500000000ULL) { // Try every 1.5 seconds
+            s_last_conn_try_ns = now_ns;
+            int sock = socket(AF_INET, SOCK_STREAM, 0);
+            if (sock >= 0) {
+                struct sockaddr_in serv_addr;
+                memset(&serv_addr, 0, sizeof(serv_addr));
+                serv_addr.sin_family = AF_INET;
+                serv_addr.sin_port = htons((uint16_t)s_config.input_node_port);
+                serv_addr.sin_addr.s_addr = inet_addr(s_config.input_node_ip);
+                struct timeval rcv_tv = {0, 200000}; // 200ms
+                setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&rcv_tv, sizeof(rcv_tv));
+                setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&rcv_tv, sizeof(rcv_tv));
+                if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == 0) {
+                    s_input_sock = sock;
+                    printf("[QNX COMM] Successfully connected outbound to Input Node (%s:%d)!\n",
+                           s_config.input_node_ip, s_config.input_node_port);
+                    fflush(stdout);
+                    s_rx_stream_len = 0;
+                    s_rx_stream_buf[0] = '\0';
+                } else {
+                    close(sock);
+                }
             }
         }
     }
