@@ -108,6 +108,7 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
             return false;
         }
     }
+#else
     // 1. Check for incoming connection on s_listen_in if not connected
     if (s_input_sock < 0 && s_listen_in >= 0) {
         fd_set read_fds;
@@ -135,7 +136,7 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
     if (s_input_sock < 0 && s_config.input_node_ip[0] != '\0') {
         static uint64_t s_last_conn_try_ns = 0;
         uint64_t now_ns = get_monotonic_time_ns();
-        if (now_ns - s_last_conn_try_ns >= 1500000000ULL) { // Try every 1.5 seconds
+        if (now_ns - s_last_conn_try_ns >= 1000000000ULL) { // Try every 1.0 second
             s_last_conn_try_ns = now_ns;
             int sock = socket(AF_INET, SOCK_STREAM, 0);
             if (sock >= 0) {
@@ -312,6 +313,31 @@ bool comm_manager_send_command(const char* cmd_buffer, size_t len) {
                 printf("[QNX COMM] Output actuator node connected from %s:%d\n",
                        inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
                 fflush(stdout);
+            }
+    // Also attempt outbound connection to output_node_ip if not connected
+    if (s_output_sock < 0 && s_config.output_node_ip[0] != '\0') {
+        static uint64_t s_last_out_try_ns = 0;
+        uint64_t now_ns = get_monotonic_time_ns();
+        if (now_ns - s_last_out_try_ns >= 1000000000ULL) {
+            s_last_out_try_ns = now_ns;
+            int out_fd = socket(AF_INET, SOCK_STREAM, 0);
+            if (out_fd >= 0) {
+                struct sockaddr_in serv_addr;
+                memset(&serv_addr, 0, sizeof(serv_addr));
+                serv_addr.sin_family = AF_INET;
+                serv_addr.sin_port = htons((uint16_t)s_config.output_node_port);
+                serv_addr.sin_addr.s_addr = inet_addr(s_config.output_node_ip);
+                struct timeval tv = {0, 200000};
+                setsockopt(out_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+                setsockopt(out_fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+                if (connect(out_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == 0) {
+                    s_output_sock = out_fd;
+                    printf("[QNX COMM] Connected outbound to Output Node (%s:%d)!\n",
+                           s_config.output_node_ip, s_config.output_node_port);
+                    fflush(stdout);
+                } else {
+                    close(out_fd);
+                }
             }
         }
     }
