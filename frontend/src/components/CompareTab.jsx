@@ -30,10 +30,8 @@ export default function CompareTab({ sensorData, wsConnected }) {
     const flameDet = sensorData.flame_detected ?? false;
     const flameAdc = sensorData.flame_raw_adc ?? 3800;
 
-    // 1. QNX Microkernel SCHED_FIFO Evaluation (Real deterministic microsecond calculation)
-    const qnxLat = sensorData.qnx_eval?.latency_us ?? (
-      sensorData.latency_us ?? Number((14.2 + ((seq * 7 + gasAdc * 3) % 150) / 10.0 + (temp > 35 ? 4.5 : 0)).toFixed(1))
-    );
+    // 1. Real Microsecond Evaluation Latency from Live Stream
+    const qnxLat = sensorData.qnx_eval?.latency_us ?? (sensorData.latency_us ?? 18.2);
     
     let qnxState = 'NORMAL';
     let qnxAction = 'IDLE_MONITOR';
@@ -48,13 +46,8 @@ export default function CompareTab({ sensorData, wsConnected }) {
       qnxAction = 'RELAY_FAN';
     }
 
-    // 2. Windows Python Script Evaluation (Simultaneous on Host with OS thread scheduling jitter)
-    let winLat = sensorData.windows_eval?.latency_us;
-    if (winLat === undefined) {
-      const isSpike = (seq % 6 === 0) || (gasAdc > 1500 && seq % 2 === 0);
-      const spikeVal = isSpike ? (120.0 + ((seq * 43) % 1800)) : (22.0 + ((seq * 7) % 25));
-      winLat = Number(spikeVal.toFixed(1));
-    }
+    // 2. Real Host Script Latency from Live Stream
+    const winLat = sensorData.windows_eval?.latency_us ?? qnxLat;
 
     let winState = qnxState;
     let winAction = qnxAction;

@@ -29,14 +29,14 @@ def get_system_status(db: Session = Depends(get_db)):
     else:
         qnx_state = "NORMAL"
 
-    calc_eval_latency = round(14.2 + ((received * 7 + (latest_sensor.mq2_raw_adc if latest_sensor else 350) * 3) % 150) / 10.0, 1)
-    calc_loop_latency = round(99.2 + ((received * 3) % 50) / 10.0, 1)
+    eval_latency = latest_metric.eval_latency_us if latest_metric else 18.5
+    loop_latency = latest_metric.loop_latency_ms if latest_metric else 100.0
 
     return SystemStatusResponse(
         qnx_state=qnx_state,
-        latency_us=calc_eval_latency,
-        eval_latency_us=calc_eval_latency,
-        loop_latency_ms=calc_loop_latency,
+        latency_us=eval_latency,
+        eval_latency_us=eval_latency,
+        loop_latency_ms=loop_latency,
         is_comm_healthy=True,
         total_packets_received=received,
         total_dropped_packets=dropped,

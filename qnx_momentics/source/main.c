@@ -77,6 +77,7 @@ int main(int argc, char** argv) {
     memset(&last_valid_tel, 0, sizeof(last_valid_tel));
     uint64_t last_packet_time_ns = get_monotonic_time_ns();
     uint64_t last_waiting_print_ns = 0;
+    double last_measured_loop_latency_ms = 0.0;
 
     while (g_running) {
         uint64_t loop_start_ns = get_monotonic_time_ns();
@@ -127,7 +128,7 @@ int main(int argc, char** argv) {
             SystemSafetyState state = safety_engine_evaluate(&safety_ctx, &tel, is_healthy, &cmd);
             cmd.sequence_number = cmd_seq++;
             cmd.eval_latency_us = (float)safety_ctx.last_eval_latency_ns / 1000.0f;
-            cmd.loop_latency_ms = 100.0f;
+            cmd.loop_latency_ms = (float)last_measured_loop_latency_ms;
 
             // Step C: Transmit Command to Output Node Actuators
             size_t cmd_len = protocol_format_command(&cmd, cmd_buffer, sizeof(cmd_buffer));
@@ -144,6 +145,7 @@ int main(int argc, char** argv) {
             // Step E: Compute Execution & Latency Metrics
             uint64_t loop_end_ns = get_monotonic_time_ns();
             double loop_latency_ms = (double)(loop_end_ns - loop_start_ns) / 1000000.0;
+            last_measured_loop_latency_ms = loop_latency_ms;
             double qnx_decision_us = (double)safety_ctx.last_eval_latency_ns / 1000.0;
 
             // Step F: Real-Time Orchestrator Dashboard Output
