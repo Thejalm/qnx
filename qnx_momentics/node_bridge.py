@@ -91,7 +91,14 @@ class InputNodeBridge:
                 client.setblocking(True)
                 with self.lock:
                     self.clients.append(client)
-                print(f"\n[INPUT BRIDGE] Client connected from {addr} (Total: {len(self.clients)})")
+                
+                client_ip = addr[0]
+                if client_ip == "127.0.0.1" or client_ip == "localhost":
+                    print(f"\n[INPUT BRIDGE] Local Web Dashboard connected from {addr} (Total: {len(self.clients)})")
+                elif client_ip == self.target_master_ip:
+                    print(f"\n[INPUT BRIDGE] *** QNX MASTER (10.61.30.60) CONNECTED from {addr} *** (Total: {len(self.clients)})")
+                else:
+                    print(f"\n[INPUT BRIDGE] External client connected from {addr} (Total: {len(self.clients)})")
             except Exception:
                 break
         server.close()
