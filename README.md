@@ -38,10 +38,6 @@ QNX-Wired-Safety-Automation-Orchestrator/
 │   │   └── input_node.ino          # ESP32-C3 Input Node C++ Source
 │   ├── output_node/
 │   │   └── output_node.ino         # ESP32-C3 Output Actuators & OLED C++ Source
-│   ├── simulator/
-│   │   ├── input_node_sim.py       # Virtual Input Node (10 Hz telemetry)
-│   │   ├── output_node_sim.py      # Virtual Output Node (Interactive ASCII OLED + Failsafe)
-│   │   └── test_bench.py           # Interactive CLI Injector
 │   ├── node.md                     # Hardware wiring & telemetry specs
 │   └── output_node.md              # Hardware wiring & command specs
 │
@@ -53,8 +49,7 @@ QNX-Wired-Safety-Automation-Orchestrator/
 │   ├── source/                     # C Real-Time Subsystems & Main Decision Loop
 │   ├── configuration/              # safety_config.ini
 │   ├── documentation/              # qnx_architecture.md
-│   ├── node_bridge.py              # Node Computer Serial-to-Ethernet Bridge
-│   └── qnx_orchestrator_sim.py     # Host simulator runner
+│   └── node_bridge.py              # Node Computer Serial-to-Ethernet Bridge
 │
 ├── backend/
 │   ├── app/
