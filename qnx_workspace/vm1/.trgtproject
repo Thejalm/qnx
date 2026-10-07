@@ -6,8 +6,8 @@
                 <name value="vm1"/>
             </project>
             <connection>
-                <HASVERSION value="1"/>
                 <TIMEZONE value="UTC0"/>
+                <HASVERSION value="1"/>
                 <VERSION value="2026/06/05-16:26:03EDT"/>
                 <RELEASE value="8.0.0"/>
                 <SYSNAME value="QNX"/>

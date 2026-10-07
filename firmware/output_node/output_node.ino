@@ -54,7 +54,7 @@
 #define PIN_STATUS_LED      8      // Onboard Heartbeat LED
 
 // Fail-Safe Watchdog Parameters
-#define FAILSAFE_TIMEOUT_MS 2000   // Trigger fail-safe if no packet in 2.0s
+#define FAILSAFE_TIMEOUT_MS 3500   // Trigger fail-safe if no packet in 3.5s (resilient to bridge jitter)
 
 // ============================================================================
 // GLOBAL OBJECTS & STATE
