@@ -162,12 +162,29 @@ class OutputNodeBridge:
         self.tcp_port = tcp_port
         self.running = True
         self.ser = None
+        self.ser_lock = threading.Lock()
+        self.clients = []
+        self.client_lock = threading.Lock()
+        self.cmd_count = 0
 
     def open_serial(self):
         while self.running:
             try:
                 print(f"[OUTPUT BRIDGE] Attempting to open serial {self.com_port} @ {self.baud_rate}...")
-                self.ser = serial.Serial(self.com_port, self.baud_rate, timeout=0.1)
+                self.ser = serial.Serial(
+                    self.com_port,
+                    self.baud_rate,
+                    timeout=0.1,
+                    write_timeout=0,
+                    dsrdtr=False,
+                    rtscts=False,
+                    xonxoff=False
+                )
+                try:
+                    self.ser.dtr = True
+                    self.ser.rts = False
+                except Exception:
+                    pass
                 print(f"[OUTPUT BRIDGE] Successfully connected to {self.com_port} (ESP32-C3 Output Node)")
                 return True
             except Exception as e:
@@ -175,39 +192,77 @@ class OutputNodeBridge:
                 time.sleep(2.0)
         return False
 
+    def serial_reader_worker(self):
+        """Continuously reads $ACK responses and status lines from ESP32 and routes to QNX Master."""
+        ack_count = 0
+        while self.running:
+            if self.ser and self.ser.is_open:
+                try:
+                    line = self.ser.readline().decode('ascii', errors='ignore').strip()
+                    if line:
+                        print(f"[ESP32 RX] {line}", flush=True)
+                        if line.startswith('$ACK'):
+                            ack_count += 1
+                            data = (line + "\r\n").encode('ascii')
+                            with self.client_lock:
+                                dead = []
+                                for c in self.clients:
+                                    try:
+                                        c.sendall(data)
+                                    except Exception:
+                                        dead.append(c)
+                                for d in dead:
+                                    try:
+                                        d.close()
+                                    except Exception:
+                                        pass
+                                    if d in self.clients:
+                                        self.clients.remove(d)
+                except Exception as e:
+                    print(f"[OUTPUT BRIDGE SERIAL ERR] {e}", flush=True)
+                    time.sleep(0.5)
+            else:
+                time.sleep(0.5)
+
     def handle_client(self, client, addr):
-        print(f"[OUTPUT BRIDGE] QNX Master connected from {addr}")
+        print(f"\n[OUTPUT BRIDGE] Master connected from {addr}", flush=True)
+        with self.client_lock:
+            self.clients.append(client)
         buffer = ""
         while self.running:
             try:
-                # Read from socket
                 data = client.recv(256).decode('ascii', errors='ignore')
                 if not data:
+                    print(f"[OUTPUT BRIDGE] Client {addr} sent EOF/closed", flush=True)
                     break
                 buffer += data
                 while "\n" in buffer:
                     line, buffer = buffer.split("\n", 1)
                     line = line.strip()
                     if line.startswith('$CMD'):
-                        # Forward $CMD to physical ESP32 Output Node
                         if self.ser and self.ser.is_open:
-                            self.ser.write((line + "\r\n").encode('ascii'))
-                            self.ser.flush()
-                            sys.stdout.write(f"\r[OUTPUT BRIDGE] Forwarded to ESP32: {line[:50]}... ")
-                            sys.stdout.flush()
-
-                # Read ACK from ESP32 and forward back to QNX Master
-                if self.ser and self.ser.is_open and self.ser.in_waiting > 0:
-                    ack_line = self.ser.readline().decode('ascii', errors='ignore').strip()
-                    if ack_line.startswith('$ACK'):
-                        client.sendall((ack_line + "\r\n").encode('ascii'))
+                            with self.ser_lock:
+                                try:
+                                    self.ser.write((line + "\r\n").encode('ascii'))
+                                except Exception as w_err:
+                                    print(f"[OUTPUT BRIDGE WRITE ERR] {w_err}", flush=True)
+                            self.cmd_count += 1
+                            if self.cmd_count % 10 == 0 or self.cmd_count <= 5:
+                                print(f"[OUTPUT BRIDGE] Forwarded #{self.cmd_count} to ESP32: {line[:55]}...", flush=True)
             except (ConnectionResetError, BrokenPipeError):
                 break
-            except Exception:
+            except Exception as e:
+                print(f"[OUTPUT BRIDGE SOCKET ERR] {e}", flush=True)
                 time.sleep(0.01)
 
         print(f"\n[OUTPUT BRIDGE] QNX Master disconnected from {addr}")
-        client.close()
+        with self.client_lock:
+            if client in self.clients:
+                self.clients.remove(client)
+        try:
+            client.close()
+        except Exception:
+            pass
 
     def run(self):
         if not HAS_SERIAL:
@@ -217,17 +272,20 @@ class OutputNodeBridge:
         if not self.open_serial():
             return
 
+        t_ser = threading.Thread(target=self.serial_reader_worker, daemon=True)
+        t_ser.start()
+
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("0.0.0.0", self.tcp_port))
-        server.listen(1)
+        server.listen(5)
         print(f"[OUTPUT BRIDGE] Actuator Command Server listening on 0.0.0.0:{self.tcp_port}")
 
         while self.running:
             try:
                 client, addr = server.accept()
-                client.setblocking(True)
-                self.handle_client(client, addr)
+                t_client = threading.Thread(target=self.handle_client, args=(client, addr), daemon=True)
+                t_client.start()
             except Exception:
                 break
         server.close()

@@ -24,6 +24,9 @@ int main(int argc, char** argv) {
 
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
+#ifndef _WIN32
+    signal(SIGPIPE, SIG_IGN);
+#endif
 
     // 1. Initialize Configuration
     CommConfig comm_cfg;

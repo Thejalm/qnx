@@ -12,6 +12,31 @@ class QnxSyncService:
         self.running = True
         self.log_file_pos = 0
         self.last_db_save_time = 0
+        self._cmd_sock = None
+        self._cmd_lock = threading.Lock()
+
+    def _send_actuator_command(self, seq: int, b1: int, b2: int, fan: int, pump: int, led_y: int, led_r: int, status_str: str):
+        payload = f"CMD,2,{seq},{b1},{b2},{fan},{pump},{led_y},{led_r},{status_str}"
+        chk = 0
+        for ch in payload:
+            chk ^= ord(ch)
+        pkt = f"${payload}*{chk:02X}\r\n".encode("ascii")
+
+        with self._cmd_lock:
+            try:
+                if self._cmd_sock is None:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(0.2)
+                    s.connect(("127.0.0.1", 9002))
+                    self._cmd_sock = s
+                self._cmd_sock.sendall(pkt)
+            except Exception:
+                if self._cmd_sock:
+                    try:
+                        self._cmd_sock.close()
+                    except Exception:
+                        pass
+                self._cmd_sock = None
 
     def start(self):
         t1 = threading.Thread(target=self._tail_qnx_log_worker, daemon=True)
@@ -70,9 +95,23 @@ class QnxSyncService:
         """Reads incoming telemetry from Input Node socket and broadcasts / saves."""
         while self.running:
             try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(2.0)
-                s.connect(("127.0.0.1", settings.QNX_INPUT_STREAM_PORT))
+                # Try remote Input Node IP first, fallback to localhost
+                connected = False
+                for target_ip in [settings.QNX_INPUT_STREAM_IP, "127.0.0.1"]:
+                    if not target_ip:
+                        continue
+                    try:
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.settimeout(2.0)
+                        s.connect((target_ip, settings.QNX_INPUT_STREAM_PORT))
+                        connected = True
+                        print(f"[QNX SYNC] Telemetry stream connected to Input Node ({target_ip}:{settings.QNX_INPUT_STREAM_PORT})")
+                        break
+                    except Exception:
+                        s.close()
+                if not connected:
+                    time.sleep(2.0)
+                    continue
                 buffer = ""
 
                 while self.running:

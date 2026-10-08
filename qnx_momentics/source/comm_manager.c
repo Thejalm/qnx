@@ -168,8 +168,10 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
 #endif
 
     // 2. First check if we already have a complete line in stream buffer
-    char* newline_pos = strchr(s_rx_stream_buf, '\n');
-    if (newline_pos) {
+    while (s_rx_stream_len > 0) {
+        char* newline_pos = strchr(s_rx_stream_buf, '\n');
+        if (!newline_pos) break;
+
         char* start_pos = strchr(s_rx_stream_buf, '$');
         if (start_pos && start_pos < newline_pos) {
             size_t line_len = (size_t)(newline_pos - start_pos) + 1;
@@ -186,6 +188,11 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
                 return true;
             }
         }
+        // Discard leading garbage up to and including newline
+        size_t consumed = (size_t)(newline_pos - s_rx_stream_buf) + 1;
+        s_rx_stream_len -= consumed;
+        memmove(s_rx_stream_buf, newline_pos + 1, s_rx_stream_len);
+        s_rx_stream_buf[s_rx_stream_len] = '\0';
     }
 
     // 3. Check socket for available incoming data using select()
@@ -244,8 +251,10 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
     }
 
     // Extract line if now complete
-    newline_pos = strchr(s_rx_stream_buf, '\n');
-    if (newline_pos) {
+    while (s_rx_stream_len > 0) {
+        char* newline_pos = strchr(s_rx_stream_buf, '\n');
+        if (!newline_pos) break;
+
         char* start_pos = strchr(s_rx_stream_buf, '$');
         if (start_pos && start_pos < newline_pos) {
             size_t line_len = (size_t)(newline_pos - start_pos) + 1;
@@ -262,6 +271,11 @@ bool comm_manager_receive_telemetry(char* out_buffer, size_t max_len, uint32_t t
                 return true;
             }
         }
+        // Discard leading garbage up to and including newline
+        size_t consumed = (size_t)(newline_pos - s_rx_stream_buf) + 1;
+        s_rx_stream_len -= consumed;
+        memmove(s_rx_stream_buf, newline_pos + 1, s_rx_stream_len);
+        s_rx_stream_buf[s_rx_stream_len] = '\0';
     }
 
     return false;
@@ -360,13 +374,22 @@ bool comm_manager_send_command(const char* cmd_buffer, size_t len) {
 }
 
 bool comm_manager_receive_ack(char* out_buffer, size_t max_len, uint32_t timeout_ms) {
-    (void)timeout_ms;
     if (!out_buffer || max_len == 0) return false;
 
 #if defined(_WIN32) && !defined(__QNX__) && !defined(__QNXNTO__)
     if (s_output_sock == INVALID_SOCKET) return false;
 #else
     if (s_output_sock < 0) return false;
+
+    // Fast non-blocking check with timeout_ms to protect deterministic deadline
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(s_output_sock, &read_fds);
+    struct timeval tv = {0, (long)(timeout_ms * 1000)};
+    int sel_res = select(s_output_sock + 1, &read_fds, NULL, NULL, &tv);
+    if (sel_res <= 0) {
+        return false; // No ACK available right now
+    }
 #endif
 
     size_t idx = 0;

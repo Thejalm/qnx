@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "qnx_safety_db")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
 
-    # QNX Master connection
+    # QNX Master & Input Node connection
+    QNX_INPUT_STREAM_IP: str = os.getenv("QNX_INPUT_STREAM_IP", "10.61.30.220")
     QNX_INPUT_STREAM_PORT: int = 9001
     QNX_LOG_FILE: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../qnx_momentics/qnx_safety_events.log"))
 

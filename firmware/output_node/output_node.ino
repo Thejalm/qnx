@@ -23,6 +23,13 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#if SOC_USB_SERIAL_JTAG_SUPPORTED
+#include "HWCDC.h"
+#if !ARDUINO_USB_CDC_ON_BOOT
+HWCDC HWCDCSerial;
+#endif
+#endif
+
 // ============================================================================
 // CONFIGURATION & PIN DEFINITIONS (ESP32-C3 16-Pin)
 // ============================================================================
@@ -53,9 +60,6 @@
 #define PIN_LED_RED         7      // Red: Critical Safety Trip / Fault
 #define PIN_STATUS_LED      8      // Onboard Heartbeat LED
 
-// Fail-Safe Watchdog Parameters
-#define FAILSAFE_TIMEOUT_MS 3500   // Trigger fail-safe if no packet in 3.5s (resilient to bridge jitter)
-
 // ============================================================================
 // GLOBAL OBJECTS & STATE
 // ============================================================================
@@ -70,11 +74,10 @@ bool state_relay_pump = false;
 bool state_led_yellow = false;
 bool state_led_red = false;
 
-// Fail-Safe and Tracking Variables
+// Command and Tracking Variables
 unsigned long last_valid_command_time = 0;
-bool failsafe_active = false;
 uint32_t last_received_seq = 0;
-char last_status_text[32] = "INITIALIZING";
+char last_status_text[32] = "STANDBY";
 
 // Serial Receiver Buffer
 #define RX_BUFFER_SIZE 256
@@ -119,21 +122,6 @@ void apply_actuator_hardware_states() {
 }
 
 /**
- * Enters hardware fail-safe state when communication with QNX/Node Controller is lost
- */
-void enter_failsafe_state() {
-    failsafe_active = true;
-    state_buzzer1 = true;      // Activate emergency alarm
-    state_buzzer2 = false;
-    state_relay_fan = true;    // Force exhaust fan ON to prevent heat/gas buildup
-    state_relay_pump = false;  // Keep pump OFF unless actively commanded
-    state_led_yellow = true;   // Warning ON
-    state_led_red = true;      // Critical LED ON
-    strncpy(last_status_text, "COMM FAILSAFE!", sizeof(last_status_text));
-    apply_actuator_hardware_states();
-}
-
-/**
  * Renders the OLED Display dashboard
  */
 void update_oled_display() {
@@ -151,11 +139,7 @@ void update_oled_display() {
     // Status Banner
     display.setCursor(0, 12);
     display.print("SYS: ");
-    if (failsafe_active) {
-        display.print("FAILSAFE (LOST LINK)");
-    } else {
-        display.print(last_status_text);
-    }
+    display.print(last_status_text);
 
     // Actuator States (2 Column Grid)
     display.setCursor(0, 24);
@@ -175,7 +159,7 @@ void update_oled_display() {
 
     // Sequence & Heartbeat Line
     display.setCursor(0, 56);
-    display.printf("SEQ:%05lu LINK:%s", last_received_seq, failsafe_active ? "DOWN" : "LIVE");
+    display.printf("SEQ:%05lu LINK:LIVE", last_received_seq);
 
     display.display();
 }
@@ -189,7 +173,7 @@ void send_ack_packet(uint32_t seq) {
     char full_packet[160];
 
     snprintf(payload, sizeof(payload),
-             "ACK,%u,%lu,%d,%d,%d,%d,%d,%d,%d",
+             "ACK,%u,%lu,%d,%d,%d,%d,%d,%d,0",
              NODE_ID,
              seq,
              state_buzzer1 ? 1 : 0,
@@ -197,12 +181,14 @@ void send_ack_packet(uint32_t seq) {
              state_relay_fan ? 1 : 0,
              state_relay_pump ? 1 : 0,
              state_led_yellow ? 1 : 0,
-             state_led_red ? 1 : 0,
-             failsafe_active ? 1 : 0);
+             state_led_red ? 1 : 0);
 
     uint8_t checksum = calculate_xor_checksum(payload, strlen(payload));
     snprintf(full_packet, sizeof(full_packet), "$%s*%02X\r\n", payload, checksum);
     Serial.print(full_packet);
+#if SOC_USB_SERIAL_JTAG_SUPPORTED && !ARDUINO_USB_CDC_ON_BOOT
+    HWCDCSerial.print(full_packet);
+#endif
 }
 
 /**
@@ -291,7 +277,6 @@ bool parse_command_packet(char* packet_str) {
 
     last_received_seq = seq;
     last_valid_command_time = millis();
-    failsafe_active = false;
 
     apply_actuator_hardware_states();
     send_ack_packet(seq);
@@ -304,12 +289,9 @@ bool parse_command_packet(char* packet_str) {
 // ============================================================================
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
-    // Wait for USB CDC Serial to connect (up to 3 seconds)
-    unsigned long start_wait = millis();
-    while(!Serial && (millis() - start_wait < 3000)) {
-        delay(10);
-    }
-    Serial.println("\n[DEBUG] Serial initialized.");
+#if SOC_USB_SERIAL_JTAG_SUPPORTED && !ARDUINO_USB_CDC_ON_BOOT
+    HWCDCSerial.begin(SERIAL_BAUD_RATE);
+#endif
     delay(100);
 
     // 1. Configure Actuator Pins as Outputs
@@ -330,17 +312,13 @@ void setup() {
     digitalWrite(PIN_LED_RED, LOW);
     digitalWrite(PIN_STATUS_LED, LOW);
 
-    Serial.println("[DEBUG] Starting I2C Init...");
-    // 3. Initialize I2C and OLED Display safely (with timeout so it never hangs)
+    // 3. Initialize I2C and OLED Display safely
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
-    Wire.setTimeOut(25); // 25 ms timeout to prevent any I2C lockup
+    Wire.setTimeOut(25);
     delay(50);
 
-    Serial.println("[DEBUG] Scanning for OLED at 0x3C...");
-    // Scan if OLED exists at 0x3C or 0x3D
     Wire.beginTransmission(0x3C);
     uint8_t i2c_err = Wire.endTransmission();
-    Serial.printf("[DEBUG] I2C Scan result: %d\n", i2c_err);
     if (i2c_err == 0) {
         if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
             oled_initialized = true;
@@ -352,22 +330,14 @@ void setup() {
             display.setCursor(10, 35);
             display.println("READY & AWAITING");
             display.display();
-            Serial.println("[DEBUG] OLED Initialized Successfully.");
         } else {
-            Serial.println("[DEBUG] OLED display.begin() failed.");
             oled_initialized = false;
         }
     } else {
-        Serial.println("[DEBUG] OLED not found on I2C bus.");
         oled_initialized = false;
     }
 
     last_valid_command_time = millis();
-
-    Serial.println("\n========================================================");
-    Serial.println("  QNX OUTPUT ACTUATOR NODE 2 (ESP32-C3) LIVE & READY");
-    Serial.println("  Send: $CMD,2,100,0,0,0,0,0,0,ALL_NORMAL*4E to test!");
-    Serial.println("========================================================\n");
 }
 
 // ============================================================================
@@ -375,34 +345,36 @@ void setup() {
 // ============================================================================
 unsigned long last_periodic_ack = 0;
 
+inline void feed_serial_byte(char c) {
+    if (c == '\n' || c == '\r') {
+        if (rx_index > 0) {
+            rx_buffer[rx_index] = '\0';
+            parse_command_packet(rx_buffer);
+            rx_index = 0;
+        }
+    } else {
+        if (rx_index < RX_BUFFER_SIZE - 1) {
+            rx_buffer[rx_index++] = c;
+        } else {
+            rx_index = 0;
+        }
+    }
+}
+
 void loop() {
     unsigned long current_time = millis();
 
-    // 1. Process incoming Serial bytes
+    // 1. Process incoming Serial bytes from Hardware UART and USB CDC
     while (Serial.available() > 0) {
-        char c = Serial.read();
-
-        if (c == '\n' || c == '\r') {
-            if (rx_index > 0) {
-                rx_buffer[rx_index] = '\0';
-                parse_command_packet(rx_buffer);
-                rx_index = 0; // Reset buffer
-            }
-        } else {
-            if (rx_index < RX_BUFFER_SIZE - 1) {
-                rx_buffer[rx_index++] = c;
-            } else {
-                rx_index = 0; // Overflow safety flush
-            }
-        }
+        feed_serial_byte((char)Serial.read());
     }
-
-    // 2. Hardware Fail-Safe Watchdog
-    if (!failsafe_active && (current_time - last_valid_command_time > FAILSAFE_TIMEOUT_MS)) {
-        enter_failsafe_state();
+#if SOC_USB_SERIAL_JTAG_SUPPORTED && !ARDUINO_USB_CDC_ON_BOOT
+    while (HWCDCSerial.available() > 0) {
+        feed_serial_byte((char)HWCDCSerial.read());
     }
+#endif
 
-    // 3. Periodic OLED Update (5 Hz / 200 ms)
+    // 2. Periodic OLED Update (5 Hz / 200 ms)
     if (oled_initialized && (current_time - last_display_update >= 200)) {
         last_display_update = current_time;
         update_oled_display();
