@@ -5,7 +5,7 @@ Component: Physical Hardware Serial-to-Ethernet Gateway Bridge
 Description:
     Bridges physical USB-Serial ESP32 hardware to the real-time network:
     - Input Mode  : Reads $IN sensor frames from ESP32 Input Node and streams
-                    over TCP port 9001 (Node 1 Laptop: 10.61.30.220).
+                    over TCP port 9001 (Node 1 Laptop: 10.61.30.52).
     - Output Mode : Receives $CMD packets from QNX Master over TCP port 9002,
                     forwards to physical ESP32 Output Node, and routes $ACK back
                     (Master Laptop: 10.61.30.60).
